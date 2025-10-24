@@ -1,5 +1,8 @@
 import traceback
 import constants
+from rply import ParserGenerator
+import sys
+import copy
 
 from Observer.ImplicationIntroductionDef import ImplicationIntroductionDef
 from models.AndFormula import AndFormula
@@ -58,8 +61,10 @@ class PredicateFormula():
     def substitution(self, var_x, a):
       aux_variables = []
       for v in self.variables:
-        if(v==var_x): aux_variables.append(a)
-        else: aux_variables.append(v)
+        if(v==var_x): 
+           aux_variables.append(a)
+        else: 
+           aux_variables.append(v)
       return PredicateFormula(self.name, aux_variables)
 
 class SymbolTable:
@@ -85,16 +90,18 @@ class SymbolTable:
 
     def check_is_visible(self, formula1_line, formula2_line):
       #Find formula1_line scope.
-      if (int(formula1_line) <= int(formula2_line)): return False
+      if (int(formula1_line) <= int(formula2_line)): 
+        return False
       current_scope = None
       for i in range(len(self.symbol_table)):
         for rule in self.symbol_table['scope_{}'.format(i)]['rules']:
           if rule and (rule.line == formula1_line):
             current_scope = self.symbol_table['scope_{}'.format(i)]
             break
-        if current_scope != None: break
+        if current_scope is not None: 
+           break
       #Check if formula2_line in formula1_line scope 
-      while current_scope != None:
+      while current_scope is not None:
         for rule in current_scope['rules']:
           if rule and (rule.line == formula2_line):
             return True
@@ -116,15 +123,15 @@ class SymbolTable:
     # Returns True if the scope variable of the line is a fresh variable, i.e., it did not occur before this scope. 
     def is_fresh_variable(self, line):
       current_scope = self.find_scope(line)
-      variable = self.symbol_table[current_scope]['variable'] if current_scope!= None else None
-      return not variable in self.get_free_variables_before_scope(line)
+      variable = self.symbol_table[current_scope]['variable'] if current_scope is not None else None
+      return variable not in self.get_free_variables_before_scope(line)
 
     def get_free_variables_before_scope(self, line):
       free_variables = set()
       #Find formula1_line scope.
       scope = self.find_scope(line)
       scope = self.symbol_table[scope]['parent'] if scope in self.symbol_table else None
-      while scope != None:
+      while scope is not None:
           for rule in self.symbol_table[scope]['rules']:
             if (int(rule.line) < int(line)):
               free_variables = free_variables.union(rule.formula.free_variables())
@@ -143,9 +150,10 @@ class SymbolTable:
           if rule and (rule.line == formula1_line):
             current_scope = self.symbol_table['scope_{}'.format(i)]
             break
-        if current_scope != None: break
+        if current_scope is not None: 
+           break
       #Check if formula2_line in formula1_line scope 
-      while current_scope != None:
+      while current_scope is not None:
         for rule in current_scope['rules']:
           if rule and (int(rule.line) < int(formula1_line)):
             lines.append(rule.line)
@@ -237,7 +245,7 @@ class SymbolTable:
 
     def find_scope_variable(self, line):
         scope = self.find_scope(line)
-        if scope != None:
+        if scope is not None:
           return self.symbol_table[scope]['variable']
         #Verifica se a linha não tem fórmula (introdução do universal)
         for key, scope in self.symbol_table.items():
@@ -247,7 +255,7 @@ class SymbolTable:
 
     def check_scope_is_valid(self, scope):
         current_scope = self.current_scope
-        while current_scope != None:
+        while current_scope is not None:
             if current_scope == scope:
                 return True
             current_scope = self.symbol_table[current_scope]['parent']
@@ -255,7 +263,7 @@ class SymbolTable:
 
     def lookup_formula_by_line(self, symbol_line, line):
         scope = self.find_scope(symbol_line)
-        while scope != None:
+        while scope is not None:
             for rule in self.symbol_table[scope]['rules']:
                 if rule.line == line:
                     return rule.formula
@@ -279,21 +287,17 @@ class SymbolTable:
     def get_box_end(self):
         if self.current_scope != 'scope_0':
             return self.symbol_table[self.current_scope]['end_line']
-        return None        
-
-    def get_box_end(self, line):
-        scope = self.find_scope(line)
-        if scope != 'scope_0':
-            return self.symbol_table[scope]['end_line']
-        return None        
+        return None      
 
     def get_first_rule_from_scope(self, line):
         scope = self.find_scope(line)
-        if self.symbol_table[scope]['rules']==[]: return None
+        if self.symbol_table[scope]['rules']==[]:
+           return None
         return self.symbol_table[scope]['rules'][0]
    
     def get_last_rule_from_scope(self):
-        if self.symbol_table[self.current_scope]['rules']==[]: return None
+        if self.symbol_table[self.current_scope]['rules']==[]: 
+           return None
         return self.symbol_table[self.current_scope]['rules'][-1]
 
     def get_rule(self, rule_line):
@@ -398,7 +402,7 @@ class ImplicationEliminationDef():
       formula_reference = parser.symbol_table.find_token(self.line)
       formula1 = parser.symbol_table.lookup_formula_by_line(self.line, self.reference1.value)
       formula2 = parser.symbol_table.lookup_formula_by_line(self.line, self.reference2.value)
-      if(formula1==None or formula2==None or formula_reference==None):
+      if(formula1 is None or formula2 is None or formula_reference is None):
         return
 
       if(BinaryFormula(key='->', left = formula1, right=self.formula) != formula2
@@ -425,7 +429,7 @@ class DisjunctionIntroductionDef():
 
       formula_reference = parser.symbol_table.find_token(self.line)
       formula1 = parser.symbol_table.lookup_formula_by_line(self.line, self.reference1.value)
-      if(formula1==None):
+      if(formula1 is None):
         return
 
       # If the formula (reference 1) is not a disjunction formula
@@ -460,7 +464,7 @@ class AndIntroductionDef():
       formula_reference = parser.symbol_table.find_token(self.line)
       formula1 = parser.symbol_table.lookup_formula_by_line(self.line, self.reference1.value)
       formula2 = parser.symbol_table.lookup_formula_by_line(self.line, self.reference2.value)
-      if(formula1==None or formula2==None or formula_reference==None):
+      if(formula1 is None or formula2 is None or formula_reference is None):
         return
 
       # If the formula (reference 1) is not a conjunction formula
@@ -497,7 +501,7 @@ class AndEliminationDef():
 
       formula_reference = parser.symbol_table.find_token(self.line)
       formula1 = parser.symbol_table.lookup_formula_by_line(self.line, self.reference1.value)
-      if(formula1==None):
+      if(formula1 is None):
         return
 
       # If the formula (reference 1) is not a conjunction formula
@@ -528,19 +532,17 @@ class DisjunctionEliminationDef():
     def evaluation(self,parser,deduction_result):
       # If the references lines occur before the rule line 
       before = parser.check_line_reference_before_rule_error(deduction_result,self)
-      # If the box is a valid scope
-      valid_box = parser.check_scope_reference_error(deduction_result,self)
       # If the reference1 line occurs in the scope of the rule line 
       if before:
         parser.check_line_scope_reference_error(deduction_result,self, reference1=True)      
 
       formula_reference = parser.symbol_table.find_token(self.line)
       formula1 = parser.symbol_table.lookup_formula_by_line(self.line, self.reference1.value)
-      if(formula1==None):
+      if(formula1 is None):
         return
       formula2, formula3 = parser.symbol_table.check_scope_delimiter(self.reference2.value, self.reference3.value)
       formula4, formula5 = parser.symbol_table.check_scope_delimiter(self.reference4.value, self.reference5.value)
-      if(formula1==None or formula2==None or formula3==None or formula4==None or formula_reference==None):
+      if(formula1 is None or formula2 is None or formula3 is None or formula4 is None or formula_reference is None):
         return
 
       # If the formula (reference 1) is not a disjunction formula
@@ -582,14 +584,10 @@ class NegationIntroductionDef():
         self.is_copied = False
 
     def evaluation(self,parser,deduction_result):
-      # If the references lines occur before the rule line 
-      before = parser.check_line_reference_before_rule_error(deduction_result,self)
-      # If the box is a valid scope
-      valid_box = parser.check_scope_reference_error(deduction_result,self)
 
       formula_reference = parser.symbol_table.find_token(self.line)
       formula1, formula2 = parser.symbol_table.check_scope_delimiter(self.reference1.value, self.reference2.value)
-      if(formula1==None or formula2==None or formula_reference==None):
+      if(formula1 is None or formula2 is None or formula_reference is None):
         return
 
       # If the formula is not a negation formula
@@ -630,7 +628,7 @@ class NegationEliminationDef():
       formula_reference = parser.symbol_table.find_token(self.line)
       formula1 = parser.symbol_table.lookup_formula_by_line(self.line, self.reference1.value)
       formula2 = parser.symbol_table.lookup_formula_by_line(self.line, self.reference2.value)
-      if(formula1==None or formula2==None or formula_reference==None):
+      if(formula1 is None or formula2 is None or formula_reference is None):
         return
 
       # If the formula (reference 1) is not a contradiction
@@ -661,9 +659,8 @@ class BottomDef():
       if before:
         parser.check_line_scope_reference_error(deduction_result,self, reference1=True)      
 
-      formula_reference = parser.symbol_table.find_token(self.line)
       formula1 = parser.symbol_table.lookup_formula_by_line(self.line, self.reference1.value)
-      if(formula1==None):
+      if(formula1 is None):
         return
 
       # If the formula (reference 1) is not a bottom formula
@@ -684,14 +681,10 @@ class RaaDef():
         self.is_copied = False
 
     def evaluation(self,parser,deduction_result):
-      # If the references lines occur before the rule line 
-      before = parser.check_line_reference_before_rule_error(deduction_result,self)
-      # If the box is a valid scope
-      valid_box = parser.check_scope_reference_error(deduction_result,self)
 
       formula_reference = parser.symbol_table.find_token(self.line)
       formula1, formula2 = parser.symbol_table.check_scope_delimiter(self.reference1.value, self.reference2.value)
-      if(formula1==None or formula2==None or formula_reference==None):
+      if(formula1 is None or formula2 is None or formula_reference is None):
         return
 
       # If the hypothese (reference1) is the left formula of the conclusion
@@ -725,7 +718,7 @@ class CopyDef():
 
       formula_reference = parser.symbol_table.find_token(self.line)
       formula1 = parser.symbol_table.lookup_formula_by_line(self.line, self.reference1.value)
-      if(formula1==None):
+      if(formula1 is None):
         return
 
       # If the formula (reference 1) is not a conjunction formula
@@ -760,7 +753,7 @@ class ForAllEliminationDef():
 
       formula_reference = parser.symbol_table.find_token(self.line)
       formula1 = parser.symbol_table.lookup_formula_by_line(self.line, self.reference1.value)
-      if(formula1==None):
+      if(formula1 is None):
         return
 
       # If the formula is not a universal formula
@@ -799,7 +792,7 @@ class ExistsIntroductionDef():
 
       formula_reference = parser.symbol_table.find_token(self.line)
       formula1 = parser.symbol_table.lookup_formula_by_line(self.line, self.reference1.value)
-      if(formula1==None):
+      if(formula1 is None):
         return
       # If the formula is not a existential formula
       if(not isinstance(self.formula, QuantifierFormula) or (isinstance(self.formula, QuantifierFormula) and not self.formula.is_existential())):
@@ -833,12 +826,10 @@ class ExistsEliminationtionDef():
       # If the reference1 line occurs in the scope of the rule line 
       if before:
         parser.check_line_scope_reference_error(deduction_result,self, reference1=True)      
-      # If the box is a valid scope
-      valid_box = parser.check_scope_reference_error(deduction_result,self)
 
       variable = parser.symbol_table.find_scope_variable(self.reference2.value)
       # If no variable is at the hypothesis line.
-      if variable==None:
+      if variable is None:
           parser.has_error = True
           deduction_result.add_error(parser.get_error(constants.BOX_MUST_HAVE_A_VARIABLE, self.reference2, self))
           return
@@ -850,7 +841,7 @@ class ExistsEliminationtionDef():
       formula_reference = parser.symbol_table.find_token(self.line)
       formula1 = parser.symbol_table.lookup_formula_by_line(self.line, self.reference1.value)
       formula2, formula3 = parser.symbol_table.check_scope_delimiter(self.reference2.value, self.reference3.value)
-      if(formula1==None or formula2==None or formula3==None or formula_reference==None):
+      if(formula1 is None or formula2 is None or formula3 is None or formula_reference is None):
         return
 
       # If the rule conclusion is the same as the last formula of the box
@@ -888,15 +879,11 @@ class ForAllIntroductiontionDef():
         self.is_copied = False
 
     def evaluation(self,parser,deduction_result):
-      # If the references lines occur before the rule line 
-      before = parser.check_line_reference_before_rule_error(deduction_result,self)
-      # If the box is a valid scope
-      valid_box = parser.check_scope_reference_error(deduction_result,self)
 
       variable = parser.symbol_table.find_scope_variable(self.reference1.value)
       first_rule = parser.symbol_table.get_first_rule_from_scope(self.reference1.value)
       # If no variable is at the hypothesis line.
-      if variable==None:
+      if variable is None:
           parser.has_error = True
           deduction_result.add_error(parser.get_error(constants.BOX_MUST_HAVE_A_VARIABLE, self.reference1, self))
           return
@@ -912,7 +899,7 @@ class ForAllIntroductiontionDef():
 
       formula_reference = parser.symbol_table.find_token(self.line)
       formula1, formula2 = parser.symbol_table.check_scope_delimiter(self.reference1.value, self.reference2.value)
-      if(formula1==None or formula2==None or formula_reference==None):
+      if(formula1 is None or formula2 is None or formula_reference is None):
         return
 
       # If the formula of the first reference is not a existential formula
@@ -938,10 +925,6 @@ class ForAllIntroductiontionDef():
 
 
 ## File analisys.py
-
-from rply import ParserGenerator
-import sys
-import copy
 
 deduction_result = natural_deduction_return()
 
@@ -983,8 +966,10 @@ class ParserNadia():
           if x.isdigit():
             if int(x)!=i: 
               self.has_error = True
-              if(i==1): deduction_result.add_error("{}\n^, A numeração da linha {} deveria ser {}, pois a numeração da prova deve ser sequencial e iniciar em 1.\n".format(p,x,i))
-              else: deduction_result.add_error("{}\n^, A numeração da linha {} deveria ser {}, pois a numeração da prova deve ser sequencial.\n".format(p,x,i))
+              if(i==1): 
+                deduction_result.add_error("{}\n^, A numeração da linha {} deveria ser {}, pois a numeração da prova deve ser sequencial e iniciar em 1.\n".format(p,x,i))
+              else: 
+                deduction_result.add_error("{}\n^, A numeração da linha {} deveria ser {}, pois a numeração da prova deve ser sequencial.\n".format(p,x,i))
               break
             i+=1
 
@@ -993,16 +978,15 @@ class ParserNadia():
       for i in range(1,len(self.symbol_table.symbol_table)):
         current_scope = self.symbol_table.symbol_table['scope_{}'.format(i)]
         current_scope_parent = self.symbol_table.symbol_table[current_scope['parent']] if current_scope['parent'] else None
-        if(current_scope_parent==None):
+        if(current_scope_parent is None):
           self.has_error = True
           deduction_result.add_error("Erro no escopo da demontração: escopo pai não encontrado.")
-        next_line_parent = None
         rule_next = None
         for rule in current_scope_parent['rules']:
           if(int(rule.line)>int(current_scope['end_line'])):
             rule_next = rule
             break
-        if (rule_next==None or ( not (isinstance(rule_next, NegationIntroductionDef) or isinstance(rule_next, RaaDef)
+        if (rule_next is None or ( not (isinstance(rule_next, NegationIntroductionDef) or isinstance(rule_next, RaaDef)
           or isinstance(rule_next, ImplicationIntroductionDef) or isinstance(rule_next, DisjunctionEliminationDef)
           or isinstance(rule_next, ExistsEliminationtionDef) or isinstance(rule_next, ForAllIntroductiontionDef)))):
           self.has_error = True
@@ -1042,27 +1026,27 @@ class ParserNadia():
     def check_line_scope_reference_error(self, deduction_result, rule, reference1=False, reference2=False, reference3=False, reference4=False, reference5=False):
       result = True
       if reference1:
-        if (self.symbol_table.lookup_formula_by_line(rule.line, rule.reference1.value)==None):
+        if (self.symbol_table.lookup_formula_by_line(rule.line, rule.reference1.value) is None):
             self.has_error = True
             deduction_result.add_error(self.get_error(constants.USING_DESCARTED_RULE, rule.reference1, rule))
             result = False
       if reference2:
-        if (self.symbol_table.lookup_formula_by_line(rule.line, rule.reference2.value)==None):
+        if (self.symbol_table.lookup_formula_by_line(rule.line, rule.reference2.value) is None):
             self.has_error = True
             deduction_result.add_error(self.get_error(constants.USING_DESCARTED_RULE, rule.reference2, rule))
             result = False
       if reference3:
-        if (self.symbol_table.lookup_formula_by_line(rule.line, rule.reference3.value)==None):
+        if (self.symbol_table.lookup_formula_by_line(rule.line, rule.reference3.value) is None):
             self.has_error = True
             deduction_result.add_error(self.get_error(constants.USING_DESCARTED_RULE, rule.reference3, rule))
             result = False
       if reference4:
-        if (self.symbol_table.lookup_formula_by_line(rule.line, rule.reference4.value)==None):
+        if (self.symbol_table.lookup_formula_by_line(rule.line, rule.reference4.value) is None):
             self.has_error = True
             deduction_result.add_error(self.get_error(constants.USING_DESCARTED_RULE, rule.reference3, rule))
             result = False
       if reference5:
-        if (self.symbol_table.lookup_formula_by_line(rule.line, rule.reference5.value)==None):
+        if (self.symbol_table.lookup_formula_by_line(rule.line, rule.reference5.value) is None):
             self.has_error = True
             deduction_result.add_error(self.get_error(constants.USING_DESCARTED_RULE, rule.reference5, rule))
             result = False
@@ -1074,7 +1058,7 @@ class ParserNadia():
           or isinstance(rule, ImplicationIntroductionDef) or isinstance(rule, ForAllIntroductiontionDef)):
           formula1, formula2 = self.symbol_table.check_scope_delimiter(rule.reference1.value, rule.reference2.value)
           # If the box references does not form a valid box 
-          if(formula1==None):
+          if(formula1 is None):
               self.has_error = True
               deduction_result.add_error(self.get_error(constants.INVALID_SCOPE_DELIMITER, rule.reference1, rule))
               result = False
@@ -1092,7 +1076,7 @@ class ParserNadia():
         elif (isinstance(rule, ExistsEliminationtionDef)):
           formula1, formula2 = self.symbol_table.check_scope_delimiter(rule.reference2.value, rule.reference3.value)
           # If the box references does not form a valid box 
-          if(formula1==None):
+          if(formula1 is None):
               self.has_error = True
               deduction_result.add_error(self.get_error(constants.INVALID_SCOPE_DELIMITER, rule.reference2, rule))
               result = False
@@ -1111,7 +1095,7 @@ class ParserNadia():
         elif isinstance(rule, DisjunctionEliminationDef):   
           formula1, formula2 = self.symbol_table.check_scope_delimiter(rule.reference2.value, rule.reference3.value)
           # If the box references does not form a valid box 
-          if(formula1==None):
+          if(formula1 is None):
               self.has_error = True
               deduction_result.add_error(self.get_error(constants.INVALID_SCOPE_DELIMITER, rule.reference2, rule))
               result = False
@@ -1123,7 +1107,7 @@ class ParserNadia():
               result = False
           formula1, formula2 = self.symbol_table.check_scope_delimiter(rule.reference4.value, rule.reference5.value)
           # If the box references does not form a valid box 
-          if(formula1==None):
+          if(formula1 is None):
               self.has_error = True
               deduction_result.add_error(self.get_error(constants.INVALID_SCOPE_DELIMITER, rule.reference4, rule))
               result = False
@@ -1263,9 +1247,6 @@ class ParserNadia():
                 deduction_result.add_error(self.get_error(constants.HYPOTHESIS_WITHOUT_BOX, formula_result[0], hypothesis))
             return p[0], formula_result[0]
 
-
-
-
         @self.pg.production('step : NUM DOT formula HYPOTHESIS')
         @self.pg.production('step : NUM DOT formula ATOM')
         @self.pg.production('step : NUM DOT OPEN_BRACKET formula ATOM')
@@ -1274,15 +1255,6 @@ class ParserNadia():
             wrong_rule = WrongDef(p[0].value, p[-2])
             deduction_result.add_error(self.get_error(constants.INVALID_HIP_PRE_WRITE, p[-1], wrong_rule))
             return p[0], p[-2]
-
-        @self.pg.production('step : NUM DOT formula PREMISE ATOM')
-        @self.pg.production('step : NUM DOT formula HYPOTHESIS ATOM')
-        @self.pg.production('step : NUM DOT OPEN_BRACKET formula HYPOTHESIS ATOM')
-        def Wrong_pre_hip(p):
-            self.has_error = True
-            wrong_rule = WrongDef(p[0].value, p[-3])
-            deduction_result.add_error(self.get_error(constants.EXCEDENT_HIP_PRE_WRITE, p[-1], wrong_rule))
-            return p[0], p[-3]
 
         @self.pg.production('step : NUM DOT formula NEG_ELIM NUM COMMA NUM')
         def Neg_elim(p):
@@ -1409,7 +1381,7 @@ class ParserNadia():
         @self.pg.production('step : CLOSE_BRACKET')
         def close_box(p):
             rule = self.symbol_table.get_last_rule_from_scope()
-            if rule==None:
+            if rule is None:
                 self.has_error = True
                 deduction_result.add_error(self.get_error(constants.BOX_MUST_BE_DISPOSED_BY_RULE, p[0], rule))              
                 return p[0], rule
@@ -1500,7 +1472,7 @@ class ParserNadia():
                 elif p[0].gettokentype() == 'NOT':
                     result = p[1]
                     return p[0], NegationFormula(formula=result[1])  
-                elif( not type(p[0]) is tuple):
+                elif type(p[0]) is not tuple:
                   result1 = p[0]
                   result2 = p[1]
                   # Universal Formula
@@ -1703,9 +1675,9 @@ def check_proof(input_proof, input_theorem=None, display_theorem=True, display_f
 
         if(result.errors==[]):
             s_theorem = ParserNadia.toString(result.premisses, result.conclusion)
-            if input_theorem!=None: 
+            if input_theorem is not None: 
                 premisses, conclusion = ParserTheorem.getTheorem(input_theorem)
-                if conclusion == None:
+                if conclusion is None:
                     return f'{input_theorem} não é um teorema válido!'
 
                 set_premisses = set([p.toString() for p in premisses])
@@ -1792,7 +1764,7 @@ class ParserTheorem():
                 elif p[0].gettokentype() == 'NOT':
                     result = p[1]
                     return p[0], NegationFormula(formula=result[1])  
-                elif( not type(p[0]) is tuple):
+                elif type(p[0]) is not tuple:
                   result1 = p[0]
                   result2 = p[1]
                   # Universal Formula
@@ -1940,7 +1912,6 @@ class ParserFormula():
     def parse(self):
         @self.pg.production('program : formula')
         def program(p):
-            rule_info = p[0]
             return p[0][1]
 
         @self.pg.production('formula : EXT formula')
@@ -1962,7 +1933,7 @@ class ParserFormula():
                 elif p[0].gettokentype() == 'NOT':
                     result = p[1]
                     return p[0], NegationFormula(formula=result[1])  
-                elif( not type(p[0]) is tuple):
+                elif type(p[0]) is not tuple:
                   result1 = p[0]
                   result2 = p[1]
                   # Universal Formula
