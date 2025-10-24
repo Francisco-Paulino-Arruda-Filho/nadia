@@ -1,194 +1,17 @@
-import rply
 import traceback
 
-## File formula.py
-class BinaryFormula():
-    def __init__(self, key = '', left = None, right = None):
-        self.key = key
-        self.left = left
-        self.right = right
-
-    def __eq__(self, other): 
-        if not isinstance(other, BinaryFormula):
-            return NotImplemented
-
-        return self.key == other.key and self.left == other.left and self.right == other.right
-
-    def __ne__(self, other): 
-        if not isinstance(other, BinaryFormula):
-            return NotImplemented
-
-        return self.key != other.key or self.left != other.left or self.right != other.right
-
-    def create_string_representation(self, formula, parentheses= False):
-        if(parentheses):
-          return formula.toString(parentheses=parentheses)
-        elif isinstance(formula, BinaryFormula):
-            return'({})'.format(formula.toString())
-        else:
-            return formula.toString()
-
-    def create_latex_representation(self, formula, parentheses= False):
-        if(parentheses):
-          return formula.toLatex(parentheses=parentheses)
-        elif isinstance(formula, BinaryFormula):
-            return'({})'.format(formula.toLatex())
-        else:
-            return formula.toLatex()
-
-    def is_implication(self):
-      return self.key=='->'
-    def is_conjunction(self):
-      return self.key=='&'
-    def is_disjunction(self):
-      return self.key=='|'
-
-    def toLatex(self, parentheses= False):
-        operators = {
-            '->': '\\rightarrow ',
-            '&': '\\land ',
-            '|': '\\lor ',
-            '<->': '\\leftrightarrow ',
-        }
-        string = self.create_latex_representation(self.left, parentheses=parentheses)
-        string += operators[self.key]
-        string += self.create_latex_representation(self.right, parentheses=parentheses)
-        if parentheses:
-          return '('+string+')'
-        return string
-
-    def toString(self, parentheses= False):
-        string = self.create_string_representation(self.left, parentheses=parentheses)
-        string += self.key
-        string += self.create_string_representation(self.right, parentheses=parentheses)
-        if parentheses:
-          return '('+string+')'
-        return string
-
-    def all_variables(self):
-      return self.left.all_variables().union(self.right.all_variables())
-
-    def bound_variables(self):
-      return self.all_variables().difference(self.free_variables())
-
-    def free_variables(self):
-      return self.left.free_variables().union(self.right.free_variables())
-
-    def is_substitutable(self, x, y):
-      return self.left.substitutable(x,y) and self.right.substitutable(x,y) 
-
-    def substitution(self, var_x, a):
-      return BinaryFormula(self.key, self.left.substitution(var_x, a), self.right.substitution(var_x, a))
-
-class AndFormula(BinaryFormula):
-    def __init__(self, left = None, right = None):
-        super().__init__(key = '&', left=left, right = right)
-
-class OrFormula(BinaryFormula):
-    def __init__(self, left = None, right = None):
-        super().__init__(key = '|', left=left, right = right)
-
-class ImplicationFormula(BinaryFormula):
-    def __init__(self, left = None, right = None):
-        super().__init__(key = '->', left=left, right = right)
-
-class BiImplicationFormula(BinaryFormula):
-    def __init__(self, left = None, right = None):
-        super().__init__(key = '<->', left=left, right = right)
-
-class NegationFormula():
-    def __init__(self, formula = None):
-        self.formula = formula
-
-    def __eq__(self, other): 
-        if not isinstance(other, NegationFormula):
-            return NotImplemented
-
-        return self.formula == other.formula
-
-    def __ne__(self, other): 
-        if not isinstance(other, NegationFormula):
-            return NotImplemented
-
-        return self.formula != other.formula
-
-    def toLatex(self, parentheses= False):
-        if(parentheses):
-          return '('+'\\lnot ' + self.formula.toLatex(parentheses=parentheses)+')'
-        if not isinstance(self.formula, BinaryFormula):
-            string = '\\lnot ' + self.formula.toLatex()
-        else:
-            string = '\\lnot({})'.format(self.formula.toLatex())
-        return string   
-
-    def toString(self, parentheses= False):
-        if parentheses:
-            string = '(~' + self.formula.toString(parentheses=parentheses)+')'
-        elif not isinstance(self.formula, BinaryFormula):
-            string = '~' + self.formula.toString()
-        else:
-            string = '~({})'.format(self.formula.toString())
-        return string 
-
-    def all_variables(self):
-      return self.formula.all_variables()
-
-    def bound_variables(self):
-      return self.all_variables().difference(self.free_variables())
-
-    def free_variables(self):
-      return self.formula.free_variables()
-
-    def is_substitutable(self, x, y):
-      return self.formula.substitutable(x,y)
-
-    def substitution(self, var_x, a):
-      return NegationFormula(self.formula.substitution(var_x, a))
-
-
-class AtomFormula():
-    def __init__(self, key = None):
-        self.key = key
-
-    def __eq__(self, other): 
-        if not isinstance(other, AtomFormula):
-            return NotImplemented
-
-        return self.key == other.key
-    
-    def __ne__(self, other): 
-        if not isinstance(other, AtomFormula):
-            return NotImplemented
-
-        return self.key != other.key
-
-    def toLatex(self, parentheses= False):
-        if(self.key != '@'):
-            return self.key  
-        else:
-            return '\\bot' 
-
-    def toString(self, parentheses= False):
-        return self.key  
-
-    def all_variables(self):
-      return set()
-
-    def bound_variables(self):
-      return set()
-
-    def free_variables(self):
-      return set()
-
-    def is_substitutable(self, x, y):
-      return True 
-
-    def substitution(self, var_x, a):
-      return AtomFormula(self.key)
-
-class BottonFormula(AtomFormula):
-    def __init__(self):
-      super().__init__(key='@')
+from Observer.ImplicationIntroductionDef import ImplicationIntroductionDef
+from models.AndFormula import AndFormula
+from models.AtomFormula import AtomFormula
+from models.BiImplicationFormula import BiImplicationFormula
+from models.BinaryFormula import BinaryFormula
+from models.ExistencialFormula import ExistentialFormula
+from models.ImplicationFormula import ImplicationFormula
+from models.NegationFormula import NegationFormula
+from models.OrFormula import OrFormula
+from models.QuantifierFormula import QuantifierFormula
+from models.UniversalFormula import UniversalFormula
+from nadia.Lexer import Lexer
 
 
 class PredicateFormula():
@@ -237,204 +60,6 @@ class PredicateFormula():
         if(v==var_x): aux_variables.append(a)
         else: aux_variables.append(v)
       return PredicateFormula(self.name, aux_variables)
-
-class QuantifierFormula():
-    def __init__(self, forAll = True, variable=None, formula=None):
-        self.forAll = forAll
-        self.variable = variable
-        self.formula = formula
-
-    def __eq__(self, other): 
-        if not isinstance(other, QuantifierFormula):
-            return NotImplemented
-
-        return self.forAll == other.forAll and self.variable == other.variable and self.formula == other.formula
-    
-    def __ne__(self, other): 
-        if not isinstance(other, QuantifierFormula):
-            return NotImplemented
-
-        return self.forAll != other.forAll or self.variable != other.variable or self.formula != other.formula
-
-    def is_universal(self):
-      return self.forAll
-
-    def is_existential(self):
-      return not self.forAll
-
-    def toLatex(self, parentheses= False):
-        if parentheses:
-          if self.forAll:        
-              return '(\\forall {} {})'.format(self.variable, self.formula.toLatex(parentheses=parentheses))
-          else:
-              return '(\\exists {} {})'.format(self.variable, self.formula.toLatex(parentheses=parentheses))
-        elif not isinstance(self.formula, BinaryFormula):
-          if self.forAll:        
-              return '\\forall {} {}'.format(self.variable, self.formula.toLatex())
-          else:
-              return '\\exists {} {}'.format(self.variable, self.formula.toLatex())
-        else:
-          if self.forAll:        
-              return '\\forall {} ({})'.format(self.variable, self.formula.toLatex())
-          else:
-              return '\\exists {} ({})'.format(self.variable, self.formula.toLatex())
-
-    def toString(self, parentheses= False):
-        if parentheses:
-          if self.forAll:        
-              return '(A{} {})'.format(self.variable, self.formula.toString(parentheses=parentheses))
-          else:
-              return '(E{} {})'.format(self.variable, self.formula.toString(parentheses=parentheses))
-        if not isinstance(self.formula, BinaryFormula):
-          if self.forAll:        
-              return 'A{} {}'.format(self.variable, self.formula.toString())
-          else:
-              return 'E{} {}'.format(self.variable, self.formula.toString())
-        else:
-          if self.forAll:        
-              return 'A{} ({})'.format(self.variable, self.formula.toString())
-          else:
-              return 'E{} ({})'.format(self.variable, self.formula.toString())
-
-    def all_variables(self):
-      result = self.formula.all_variables()
-      result.add(self.variable)
-      return result
-      
-    def bound_variables(self):
-      return self.all_variables().difference(self.free_variables())
-
-    def free_variables(self):
-      result = self.formula.free_variables()
-      result.discard(self.variable)
-      return result 
-
-    def is_substitutable(self, x, y):
-      if (self.variable == y and x in self.formula.free_variables()):
-        return False
-      return self.formula.is_substitutable(x,y)# and (self.variable == y or x in self.formula.free_variables())
-
-    def valid_substitution(self, formula):
-      free_vars = formula.free_variables()
-      if len(free_vars)==0:
-         return self.formula==formula
-      for v in free_vars:
-        fAux = self.formula.substitution(self.variable, v)
-        if (fAux==formula):
-          return True
-      return False
-
-    def substitution(self, var_x, a):
-      if self.variable == var_x:
-        return self#.formula#.clone()
-      else:
-        return QuantifierFormula(self.forAll,self.variable, self.formula.substitution(var_x, a))
-
-class UniversalFormula(QuantifierFormula):
-    def __init__(self, variable=None, formula=None):
-      super().__init__( forAll = True, variable=variable, formula=formula)
-
-class ExistentialFormula(QuantifierFormula):
-    def __init__(self, variable=None, formula=None):
-      super().__init__( forAll = False, variable=variable, formula=formula)
-
-
-
-## File lexer.py
-from rply import LexerGenerator
-
-
-class Lexer():
-    def __init__(self):
-        self.lexer = LexerGenerator()
-
-    def _add_tokens(self):
-        #Comma
-        self.lexer.add('COMMA', r'\,')
-
-        # Dot
-        self.lexer.add('DOT', r'\.')
-
-        # Parentheses
-        self.lexer.add('OPEN_PAREN', r'\(')
-        self.lexer.add('CLOSE_PAREN', r'\)')
-
-        #Brackets
-        self.lexer.add('OPEN_BRACKET', r'\{')
-        self.lexer.add('CLOSE_BRACKET', r'\}')
-
-        # Vdash
-        self.lexer.add('V_DASH', r'\|-|\|=')
-
-        #rules
-        self.lexer.add('IMP_INTROD', r'->i')
-        self.lexer.add('IMP_ELIM', r'->e')
-        self.lexer.add('OR_INTROD', r'\|i')
-        self.lexer.add('OR_ELIM', r'\|e')
-        self.lexer.add('AND_INTROD', r'&i')
-        self.lexer.add('AND_ELIM', r'&e')
-        self.lexer.add('NEG_INTROD', r'~i')
-        self.lexer.add('NEG_ELIM', r'~e')
-        self.lexer.add('RAA', r'raa')
-        self.lexer.add('BOTTOM_ELIM', r'@e')
-        self.lexer.add('COPY', r'copie')
-
-        # Connectives
-        self.lexer.add('BOTTOM', r'@')
-        self.lexer.add('NOT', r'~')
-        self.lexer.add('AND', r'&')
-        self.lexer.add('OR', r'\|')
-        self.lexer.add('IMPLIE', r'->')
-        self.lexer.add('IFF', r'<->')
-
-        #First order rules
-        self.lexer.add('EXT_INTROD', r'Ei')
-        self.lexer.add('EXT_ELIM', r'Ee')
-        self.lexer.add('ALL_INTROD', r'Ai')
-        self.lexer.add('ALL_ELIM', r'Ae')
-
-        #First order connectives
-        self.lexer.add('EXT', r'E[a-z][a-z0-9]*')
-        self.lexer.add('ALL', r'A[a-z][a-z0-9]*')
-
-        # definitions
-        self.lexer.add('DEF_NOT', r'def\~')
-        self.lexer.add('DEF_IMPLIE', r'def\->')
-        self.lexer.add('DEF_AND', r'def\&')
-        self.lexer.add('DEF_OR', r'def\|')
-        self.lexer.add('DEF_IFF', r'def\<->')
-        self.lexer.add('DEF_BASE', r'defAtomos')
-
-        # Dash
-        self.lexer.add('DASH', r'-')
-
-        # Number
-        self.lexer.add('NUM', r'\d+')
-
-        #justification
-        self.lexer.add('HYPOTHESIS', r'hip')
-        self.lexer.add('PREMISE', r'pre')
-
-        #Variable
-        self.lexer.add('VAR', r'(?!pre|hip)[a-z][a-z0-9]*')
-
-        # Atom
-        self.lexer.add('ATOM', r'[A-Z][A-Z0-9]*' )
-
-        # Ignore spaces and comments
-        self.lexer.ignore('##[^##]*##')
-        self.lexer.ignore('#[^\n]*\n?')
-        self.lexer.ignore('\s+')  
-
-        # Detect symbols out of grammar
-        self.lexer.add('OUT', r'.*' )      
-
-    def get_lexer(self):
-        self._add_tokens()
-        return self.lexer.build()
-
-
-## File symbol_table.py
 
 class SymbolTable:
 
@@ -866,46 +491,6 @@ class ImplicationEliminationDef():
 
     def toLatex(self, symbol_table):
         latex = '\\infer[\\!\\!{\\rightarrow\\text{e}}]{'+self.formula.toLatex()+'}{{'+symbol_table.get_rule(self.reference1.value).toLatex(symbol_table)+'}&{'+symbol_table.get_rule(self.reference2.value).toLatex(symbol_table)+'}}'
-        return latex
-
-class ImplicationIntroductionDef():
-    def __init__(self,line, formula, reference1, reference2):
-        self.line = line
-        self.formula = formula
-        self.reference1 = reference1
-        self.reference2 = reference2
-        self.is_copied = False
-
-    def evaluation(self,parser,deduction_result):
-      # If the references lines occur before the rule line 
-      parser.check_line_reference_before_rule_error(deduction_result,self)
-      # If the box is a valid scope
-      valid_box = parser.check_scope_reference_error(deduction_result,self)
-
-      formula_reference = parser.symbol_table.find_token(self.line)
-      formula1, formula2 = parser.symbol_table.check_scope_delimiter(self.reference1.value, self.reference2.value)
-      if(formula1==None or formula2==None or formula_reference==None):
-        return
-
-      # If the formula is not an implicaton formula
-      if(not isinstance(self.formula, BinaryFormula) or (isinstance(self.formula, BinaryFormula) and not self.formula.is_implication())):
-          parser.has_error = True
-          deduction_result.add_error(parser.get_error(constants.INVALID_RESULT, formula_reference, self))
-      else:
-          # If the hypothese (reference1) is the left formula of the conclusion
-          if(self.formula.left != formula1):
-              parser.has_error = True
-              deduction_result.add_error(parser.get_error(constants.INVALID_HYPOTHESIS, self.reference1, self))
-          # If the conclusion of the box (reference2) is the right formula of the conclusion
-          if(self.formula.right != formula2):
-              parser.has_error = True
-              deduction_result.add_error(parser.get_error(constants.INVALID_BOX_RESULT, self.reference2, self))
-
-
-    def toLatex(self, symbol_table):
-        hypothesis_number = str(len(hypothesis) + 1)
-        hypothesis[self.reference1.value] = hypothesis_number
-        latex = '\\infer[\\!\\!{\\rightarrow\\text{i}^{_'+ hypothesis_number +'}}]{'+self.formula.toLatex()+'}{'+symbol_table.get_rule(self.reference2.value).toLatex(symbol_table)+'}'
         return latex
 
 class DisjunctionIntroductionDef():
@@ -2027,8 +1612,6 @@ class ParserNadia():
                     var = p[0].value.split('A')[1]
                     return p[0], UniversalFormula(variable=var, formula=p[1][1])
             elif len(p)==4:
-              # Predicate Formula
-              name = p[0]
               varlist = p[2]
               return p[0], PredicateFormula(name=p[0].value,variables=varlist[1])            
             elif len(p) == 3:
@@ -2518,7 +2101,6 @@ class ParserFormula():
                     return p[0], UniversalFormula(variable=var, formula=p[1][1])
             elif len(p)==4:
               # Predicate Formula
-              name = p[0]
               varlist = p[2]
               return p[0], PredicateFormula(name=p[0].value,variables=varlist[1])            
             elif len(p) == 3:
@@ -2601,12 +2183,8 @@ class ParserFormula():
           result = parser.parse(tokens)
           return result
         except ValueError:
-            s = traceback.format_exc()
             #print (f'Erro ao fazer o parser da fórmula!')
             return None
         else:
             return None
             pass
-
-
-
