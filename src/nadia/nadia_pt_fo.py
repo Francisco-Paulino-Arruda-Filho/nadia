@@ -234,21 +234,6 @@ class SymbolTable:
             }
         self.start_scope(scope)
 
-#    def find_scope(self, line):
-#        for key, scope in self.symbol_table.items():
-#            for rule in scope['rules']:
-#                if rule and (rule.line == line):
-#                    return key
-#        return None
-
-#    def find_scope_variable(self, line):
-#        for key, scope in self.symbol_table.items():
-#          print("key,scope['variable'], scope['start_line'],line,scope['end_line'], int(scope['start_line'])<=int(line) and int(line)<=int(scope['end_line'])")
-#          print(key, scope['variable'], scope['start_line'],line,scope['end_line'], int(scope['start_line'])<=int(line) and int(line)<=int(scope['end_line']))
-#          if(int(scope['start_line'])<=int(line) and int(line)<=int(scope['end_line'])):
-#            print("find_scope_variable(self, line)",scope['variable'])
-#            return scope['variable']
-#        return None
     def find_scope_variable(self, line):
         scope = self.find_scope(line)
         if scope != None:
@@ -256,7 +241,6 @@ class SymbolTable:
         #Verifica se a linha não tem fórmula (introdução do universal)
         for key, scope in self.symbol_table.items():
           if(int(scope['start_line'])==int(line)):
-#            print("find_scope_variable(self, line)",scope['variable'])
             return scope['variable']          
         return None
 
@@ -339,15 +323,6 @@ class natural_deduction_return:
     def add_error(self, error):
         self.errors.append(error)
 
- #   def to_json(self):
- #       result = {
- #           'gentzen': self.gentzen,
- #           'fitch': self.fitch,
- #           'errors': self.errors
- #       }
-#        with open("result.json", "w", encoding='utf8') as f:
-#            f.write(json.dumps(result, sort_keys=True, indent=3, ensure_ascii=False))
-
 ## File constants.py
 class constants:
   REFERENCED_FORMULE_NONE = 0
@@ -426,12 +401,6 @@ class HypothesisDef():
 
     def evaluation(self,parser,deduction_result):
         return
-#    def eval(self, symbol_table, formula_reference):
-#        if symbol_table.get_box_end(self.line)==None:
-#            return (constants.SUCCESS, None)
-#        elif symbol_table.get_box_end(self.line)==0:
-#            return (constants.HYPOTHESIS_WITHOUT_CLOSED_BOX,formula_reference)
-#        return (constants.SUCCESS, None)
 
     def toLatex(self, symbol_table):
         line = self.copied if self.copied else self.line
@@ -450,12 +419,6 @@ class HypothesisFirstOrderDef():
 
     def evaluation(self,parser,deduction_result):
       return
-#   def eval(self, symbol_table, formula_reference):
-#        if symbol_table.get_box_end(self.line)==None:
-#            return (constants.SUCCESS, None)
-#        elif symbol_table.get_box_end(self.line)==0:
-#            return (constants.HYPOTHESIS_WITHOUT_CLOSED_BOX,formula_reference)
-#        return (constants.SUCCESS, None)
 
     def toLatex(self, symbol_table):
         line = self.copied if self.copied else self.line
@@ -820,7 +783,6 @@ class CopyDef():
     def toLatex(self, symbol_table):
         formula1 = symbol_table.lookup_formula_by_line(self.line, self.reference1.value)
         latex = '{'+formula1.toLatex()+'}'
-#        latex = '{'+self.formula.toLatex()+'}'#'\\infer[\\!\\!{\\land\\text{e}}]{'+self.formula.toLatex()+'}{'+symbol_table.get_rule(self.reference1.value).toLatex(symbol_table)+'}'
         return latex
 
 class WrongDef():
@@ -1032,7 +994,6 @@ deduction_result = natural_deduction_return()
 
 def value_error_handle(exctype, value, tb):
     deduction_result.add_error(str(value))
-#    deduction_result.to_json()
 
 sys.excepthook = value_error_handle
 
@@ -1269,8 +1230,6 @@ class ParserNadia():
                     rule.evaluation(self, deduction_result)
                 elif(isinstance(rule, BottomDef)):
                     rule.evaluation(self, deduction_result)
-                #elif(isinstance(rule, CopyDef)):
-                #    rule.evaluation(self, deduction_result)
                 elif(isinstance(rule, ExistsIntroductionDef)):
                     rule.evaluation(self, deduction_result)
                 elif(isinstance(rule, ExistsEliminationtionDef)):
@@ -1291,8 +1250,6 @@ class ParserNadia():
                 deduction_result.conclusion = self.symbol_table.getConclusionFormula()
                 deduction_result.fitch = self.box_latex[:-3] + '\n\end{logicproof}'
                 deduction_result.gentzen = latex + "\n"
-##                print(deduction_result.gentzen)
-##                print(deduction_result.fitch)
             return deduction_result
 
         @self.pg.production('steps : steps step')
@@ -1464,16 +1421,7 @@ class ParserNadia():
             self.symbol_table.insert(raa, p[0])
             self.box_latex += "{} & raa {}-{}\\\\\n".format(formula.toLatex(), p[4].value, p[6].value)
             return p[0], formula_result[0]
-
-#        @self.pg.production('step : NUM DOT formula COPY NUM')
-#        def Copy(p):
-#            formula_result = p[2]
-#            formula = formula_result[1]
-#            fCopy = CopyDef(p[0].value, formula, p[4])
-#            self.symbol_table.insert(fCopy, p[0])
-#            copied_scope = self.symbol_table.find_scope(p[4].value)
-#            self.box_latex += "{} & copie {}\\\\\n".format(formula.toLatex(), p[4].value)
-#            return p[0], formula_result[0]
+        
         @self.pg.production('step : NUM DOT formula COPY NUM')
         def Copy(p):
             copied_scope = self.symbol_table.find_scope(p[4].value)
@@ -1537,7 +1485,6 @@ class ParserNadia():
         def Exists_intro(p):
           formula_result = p[2]
           formula = formula_result[1]
-          #self.symbol_table.add_scope(p[0].value)
           existsIntroduction = ExistsIntroductionDef(p[0].value, formula, p[4])
           self.symbol_table.insert(existsIntroduction, p[0])
           self.box_latex += "{} & $\\exists i$ {}\\\\\n".format(formula.toLatex(), p[4].value)
@@ -1592,7 +1539,6 @@ class ParserNadia():
         @self.pg.production('formula : ATOM')
         @self.pg.production('formula : BOTTOM')
         def formula(p):
-            #print(p)
             if len(p) < 3:
                 if p[0].gettokentype() == 'ATOM':
                     return p[0], AtomFormula(key=p[0].value)
@@ -1679,7 +1625,6 @@ class ParserNadia():
             erro += '^, A fórmula {} não foi definida anteriormente ou foi descartada.\n'.format(token_error.value)
         elif type_error == constants.INVALID_RESULT:
             erro += "^, A fórmula {} não é um resultado válido para esta regra.".format(rule.formula.toString())
-#            erro += "^, A fórmula resultante {} não pode ser obtido a partir das fórmulas utilizadas.".format(rule.formula.toString())
         elif type_error == constants.INVALID_HYPOTHESIS:
             erro += "^, A hipótese da linha {} não corresponde a hipótese esperada para a fórmula da conclusão desta regra.".format(token_error.value)
         elif type_error == constants.INVALID_BOX_RESULT:
@@ -1742,7 +1687,6 @@ class ParserNadia():
             erro += "^, A fórmula referenciada na regra do universal não é uma fórmula do tipo universal."
         elif type_error == constants.INVALID_SUBSTITUTION_EXISTENTIAL:
             erro += "^, A fórmula {} não é uma substituição válida da fórmula existencial refenciada na linha {}.".format(rule.formula.toString(), rule.reference1.value)
-#            erro += "^, A fórmula refenciada na linha {} não é uma substituição correta da variável na fórmula do existencial desta regra.".format(token_error.value)
         elif type_error == constants.VARIABLE_IS_NOT_FRESH_VARIABLE:
             erro += "^, A variável utilizada na linha {} é uma variável livre de uma fórmula definida anteriormente e, portanto, não pode ser utilizada nesta regra.".format(token_error.value)
         elif type_error == constants.BOX_MUST_HAVE_A_VARIABLE:
@@ -1783,22 +1727,6 @@ class ParserNadia():
       parser = pg.get_parser()
       result = parser.parse(tokens)
       return result
-    # def getProof(input_text=''):
-    #     try:
-    #       lexer = Lexer().get_lexer()
-    #       tokens = lexer.lex(input_text)
-
-    #       pg = ParserNadia(state=input_text)
-    #       pg.parse()
-    #       parser = pg.get_parser()
-    #       result = parser.parse(tokens)
-    #       return result
-    #     except ValueError:
-    #         s = traceback.format_exc()
-    #         return None
-    #     else:
-    #         return None
-    #         pass
 
     @staticmethod
     def toString(premisses,conclusion,parentheses=False):
@@ -1923,7 +1851,6 @@ class ParserTheorem():
                     return p[0], UniversalFormula(variable=var, formula=p[1][1])
             elif len(p)==4:
               # Predicate Formula
-              name = p[0]
               varlist = p[2]
               return p[0], PredicateFormula(name=p[0].value,variables=varlist[1])            
             elif len(p) == 3:
@@ -1996,8 +1923,6 @@ class ParserTheorem():
         erro += productions[token_error.getsourcepos().lineno-1] + "\n"
         for i in range(column_error-1):
             erro += ' '
-#        if type_error == constants.REFERENCED_FORMULE_NONE:## REVER SE NAO EXCLUIR
-#            erro += '^, A fórmula {} não foi definida anteriormente ou foi descartada.\n'.format(token_error.value)
         
         return erro
     
@@ -2016,8 +1941,6 @@ class ParserTheorem():
           formulas, conclusion = parser.parse(tokens)
           return formulas, conclusion
         except ValueError:
-            s = traceback.format_exc()
-            #print (f'Erro ao fazer o parser da fórmula!')
             return [], None
         else:
             return [], None
@@ -2041,8 +1964,6 @@ class ParserTheorem():
 
 
 # PARSER DE UMA Fórmula
-import traceback
-
 class ParserFormula():
     def __init__(self, state):
         self.state = state
@@ -2080,7 +2001,6 @@ class ParserFormula():
         @self.pg.production('formula : ATOM')
         @self.pg.production('formula : BOTTOM')
         def formula(p):
-            #print(p)
             if len(p) < 3:
                 if p[0].gettokentype() == 'ATOM':
                     return p[0], AtomFormula(key=p[0].value)
@@ -2164,8 +2084,6 @@ class ParserFormula():
         erro += productions[token_error.getsourcepos().lineno-1] + "\n"
         for i in range(column_error-1):
             erro += ' '
-#        if type_error == constants.REFERENCED_FORMULE_NONE:## REVER SE NAO EXCLUIR
-#            erro += '^, A fórmula {} não foi definida anteriormente ou foi descartada.\n'.format(token_error.value)
         
         return erro
     
@@ -2183,7 +2101,6 @@ class ParserFormula():
           result = parser.parse(tokens)
           return result
         except ValueError:
-            #print (f'Erro ao fazer o parser da fórmula!')
             return None
         else:
             return None
