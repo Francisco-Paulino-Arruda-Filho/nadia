@@ -45,14 +45,18 @@ print(check_proof('''1. A->(B->C)             pre
 }
 7. B->(A->C)             ->i 2-6'''))
 
-print(check_proof('''1.{    A | (A&B)           hip
-2. {   A                   hip
-3. {   A&B                 hip
-4.      A                  &e 3
+prova = '''
+1. A | (A & B)        pre
+2. { A                hip
+3.     A              copie 2
    }
-5. A                      |e 1, 2-2, 3-4
-}
-6. (A | (A&B)) -> A        ->i 1-5'''))
+4. { A & B            hip
+5.     A              &e 4
+   }
+6. (A | (A & B)) -> A  ->i 1-5
+'''
+
+print(check_proof(prova))
 
 print(check_proof('''1. {    ~(A | ~A)            hip
 2.  {   ~A                   hip
