@@ -1,12 +1,12 @@
 from BinaryFormula.ImplicationFormula import ImplicationFormula
-from Strategy.InferenceContext import InferenceContext
-from Strategy.InferenceBase import InferenceRule
+from Strategy.RuleContext import RuleContext
+from Strategy.Rule import Rule
 
 
-class ImplicationEliminationDef(InferenceRule):
+class ImplicationEliminationDef(Rule):
     """Regra de Eliminação da Implicação (Modus Ponens)"""
     
-    def validate(self, context: InferenceContext) -> bool:
+    def validate(self, context: RuleContext) -> bool:
         if len(context.references) != 2:
             context.errors.append("Eliminação da implicação requer 2 referências")
             return False
@@ -42,7 +42,7 @@ class ImplicationEliminationDef(InferenceRule):
             
         return True
     
-    def get_latex_notation(self, context: InferenceContext) -> str:
+    def get_latex_notation(self, context: RuleContext) -> str:
         ref1, ref2 = context.references
         lhs = context.formula.toLatex()
         r1 = context.symbol_table.get_rule(ref1.value).toLatex(context.symbol_table)
