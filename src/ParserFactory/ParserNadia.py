@@ -1,6 +1,6 @@
 import copy
 
-from Observer import ImplicationIntroductionDef
+from Strategy import ImplicationIntroductionDef
 from ParserFactory.BaseParser import BaseParser
 from constants import constants
 from models.AndFormula import AndFormula

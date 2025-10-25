@@ -1,4 +1,4 @@
-from Observer.InferenceRuleStrategy import InferenceRuleStrategy
+from Strategy.InferenceRuleStrategy import InferenceRuleStrategy
 from models.BinaryFormula import BinaryFormula
 from constants import constants
 

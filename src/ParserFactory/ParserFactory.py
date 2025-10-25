@@ -1,4 +1,5 @@
 from ParserFactory import ParserNadia, ParserTheorem
+from ParserFactory.ParserFormula import ParserFormula
 from nadia.Lexer.Lexer import Lexer
 
 
@@ -25,7 +26,7 @@ class ParserFactory:
     @staticmethod
     def create_formula_parser(input_text):
         """Factory Method para criar ParserFormula"""
-        #return ParserFormula(state=input_text)
+        return ParserFormula(state=input_text)
     
     @staticmethod
     def create_proof_analyzer(input_text):

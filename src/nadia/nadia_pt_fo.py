@@ -1,5 +1,5 @@
 import traceback
-from ParserFactory import ParserNadia, ParserTheorem
+from ParserFactory import ParserFactory
 import constants
 import sys
 
@@ -925,13 +925,15 @@ sys.excepthook = value_error_handle
 
 def check_proof(input_proof, input_theorem=None, display_theorem=True, display_fitch=True, display_gentzen=True):
     try:
-        result = ParserNadia.getProof(input_proof)
+        parser_nadia = ParserFactory.create_nadia_parser(input_proof)
+        parser_theorem = ParserFactory.create_theorem_parser(input_theorem) if input_theorem else None
+        result = parser_nadia.getProof(input_proof)
         r = ''
 
         if(result.errors==[]):
-            s_theorem = ParserNadia.toString(result.premisses, result.conclusion)
+            s_theorem = parser_theorem.toString(result.premisses, result.conclusion)
             if input_theorem is not None: 
-                premisses, conclusion = ParserTheorem.getTheorem(input_theorem)
+                premisses, conclusion = parser_theorem.getTheorem(input_theorem)
                 if conclusion is None:
                     return f'{input_theorem} não é um teorema válido!'
 
