@@ -110,3 +110,4 @@ print(check_proof('''1. Ax (H(x)|M(x))         pre
 11. H(a)                  |e 4,5-6,7-10
 }
 12. Ax H(x)               Ai 3-11'''))
+

@@ -1,4 +1,5 @@
 from models.constants import constants
+import traceback
 
 class ParserValidator:
     def __init__(self, parser, deduction_result):

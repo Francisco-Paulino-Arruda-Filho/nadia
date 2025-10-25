@@ -2,6 +2,8 @@
 
 from AtomFormula.AtomFormula import AtomFormula
 from BinaryFormula.AndFormula import AndFormula
+from BinaryFormula.BiImplicationFormula import BiImplicationFormula
+from BinaryFormula.BinaryFormula import BinaryFormula
 from BinaryFormula.ImplicationFormula import ImplicationFormula
 from BinaryFormula.OrFormula import OrFormula
 from NegationFormula.NegationFormula import NegationFormula
@@ -9,17 +11,8 @@ from PredicatedFormula.PredicatedFormula import PredicateFormula
 from QuantifierFormula.ExistentialFormula import ExistentialFormula
 from QuantifierFormula.UniversalFormula import UniversalFormula
 from Strategy.RuleDefinition import RuleDefinition
-# Importar classes base para verificação de tipo (PremisseDef, HypothesisDef, etc.)
-# É melhor refatorar SymbolTable para usar rule_type, mas mantendo a compatibilidade temporária:
 from Strategy.PremisseDef import PremisseDef
 from Strategy.HypothesisDef import HypothesisDef
-# Assumindo que você tem estas regras para as verificações legadas
-# from Strategy.NegationIntroductionDef import NegationIntroductionDef
-# from Strategy.RaaDef import RaaDef
-# from Strategy.ImplicationIntroductionDef import ImplicationIntroductionDef
-# from Strategy.DisjunctionEliminationDef import DisjunctionEliminationDef
-# from Strategy.ExistsEliminationtionDef import ExistsEliminationtionDef
-# from Strategy.ForAllIntroductiontionDef import ForAllIntroductiontionDef
 import rply
 
 from models import constants
@@ -299,15 +292,11 @@ def limpaHipotese():
 
 from rply import ParserGenerator
 import sys
-import copy
 
-# Importe a fábrica e as classes de definição de regra/contexto
 from Strategy.RuleFactory import RuleFactory
 from Strategy.RuleDefinition import RuleDefinition
-from Strategy.RuleContext import RuleContext # Assumindo a existência de RuleContext
+from Strategy.RuleContext import RuleContext 
 
-# Importações de classes de regra específicas (necessárias para o __init__ e verificação de tipo legada)
-# Você deve ter suas classes definidas para isso
 from Strategy.WrongDef import WrongDef
 from Strategy.CopyDef import CopyDef
 from Strategy.PremisseDef import PremisseDef
@@ -325,22 +314,19 @@ from Strategy.ForAllEliminationDef import ForAllEliminationDef
 from Strategy.ForAllIntroductionDef import ForAllIntroductionDef
 from Strategy.ExistsIntroductionDef import ExistsIntroductionDef
 from Strategy.ExistsEliminationDef import ExistsEliminationDef
-# Assumindo a existência das regras de implicação (não fornecidas no prompt)
 from Strategy.ImplicationIntroductionDef import ImplicationIntroductionDef
 from Strategy.ImplicationEliminationDef import ImplicationEliminationDef
-# Assumindo a existência da regra de eliminação existencial
 from Strategy.ExistsEliminationDef import ExistsEliminationDef  
-# Assumindo a existência da regra de introdução universal
 from Strategy.ForAllIntroductionDef import ForAllIntroductionDef
+
+import traceback
 
 
 deduction_result = natural_deduction_return()
 
 def value_error_handle(exctype, value, tb):
-    # O uso de sys.excepthook não é ideal para erros de parser RPLY,
-    # mas mantido para consistência com o código original.
     deduction_result.add_error(str(value))
-    # traceback.print_tb(tb) # Descomente para debug
+    traceback.print_tb(tb) 
 
 sys.excepthook = value_error_handle
 
@@ -1009,3 +995,227 @@ class ParserNadia():
         except Exception as e:
             deduction_result.add_error(f"Erro inesperado: {str(e)}")
             return deduction_result
+
+
+def check_proof(input_proof, input_theorem=None, display_theorem=True, display_fitch=True, display_gentzen=True):
+    try:
+        result = ParserNadia.getProof(input_proof)
+        r = ''
+
+        if(result.errors==[]):
+            s_theorem = ParserNadia.toString(result.premisses, result.conclusion)
+            if input_theorem!=None: 
+                premisses, conclusion = ParserTheorem.getTheorem(input_theorem)
+                if conclusion == None:
+                    return f'{input_theorem} não é um teorema válido!'
+
+                set_premisses = set([p.toString() for p in premisses])
+                set_premisses_result = set([p.toString() for p in result.premisses])
+                if(conclusion==result.conclusion and set_premisses==set_premisses_result):
+                    r += "A demonstração está correta."
+                    if display_theorem:
+                       r += "\n"+s_theorem
+                else:
+                    r += f"Sua demostração de {s_theorem} é válida, mas é diferente da demonstração solicitada {input_theorem}"
+            else:
+                r += "A demonstração está correta."
+                if display_theorem:
+                    r += "\n"+s_theorem
+            if display_fitch:
+                r += "\n\nCódigo da demonstração no estilo Fitch em Latex:\n"
+                r += str(result.fitch)
+            if display_gentzen:
+                r += "\n\nCódigo da demonstração no estilo Gentzen em Latex:\n"
+                r += str(result.gentzen)
+        else:
+            r += "Os seguintes erros foram encontrados:\n\n"
+            for error in result.errors:
+                r += str(error)
+        return r
+    except ValueError:
+        s = traceback.format_exc()
+        result = (s.split("@@"))[-1]
+        r = "Os seguintes erros foram encontrados:\n\n"
+        r += result
+        return r
+    else:
+        pass
+
+
+
+# PARSER DE UM TEOREMA
+
+class ParserTheorem():
+    def __init__(self, state):
+        self.state = state
+        self.pg = ParserGenerator(
+            # A list of all token names accepted by the parser.
+            ['COMMA', 'OPEN_PAREN', 'CLOSE_PAREN', 'NOT',
+             'AND', 'OR',  'BOTTOM','ATOM', 'IMPLIE', 'IFF',
+             'VAR','EXT','ALL', 'V_DASH' ],
+            #The precedence $\lnot,\forall,\exists,\land,\lor,\rightarrow,\leftrightarrow$
+            precedence=[
+                ('right', ['IFF']),
+                ('right', ['IMPLIE']),
+                ('right', ['OR']),
+                ('right', ['AND']),
+                ('right', ['EXT']),
+                ('right', ['ALL']),
+                ('right', ['NOT']),
+            ]
+        )
+
+    def parse(self):
+        @self.pg.production('program : formulaslist V_DASH formula')
+        @self.pg.production('program : V_DASH formula')
+        def program(p):
+            if len(p) == 2:
+              return [], p[1][1]
+            else:
+              return p[0][1], p[2][1]
+
+        @self.pg.production('formula : EXT formula')
+        @self.pg.production('formula : ALL formula')
+        @self.pg.production('formula : formula OR formula')
+        @self.pg.production('formula : formula AND formula')
+        @self.pg.production('formula : formula IMPLIE formula')
+        @self.pg.production('formula : formula IFF formula')
+        @self.pg.production('formula : NOT formula')
+        @self.pg.production('formula : ATOM OPEN_PAREN variableslist CLOSE_PAREN')
+        @self.pg.production('formula : ATOM')
+        @self.pg.production('formula : BOTTOM')
+        def formula(p):
+            if len(p) < 3:
+                if p[0].gettokentype() == 'ATOM':
+                    return p[0], AtomFormula(key=p[0].value)
+                elif p[0].gettokentype() == 'BOTTOM':
+                    return p[0], AtomFormula(key=p[0].value)
+                elif p[0].gettokentype() == 'NOT':
+                    result = p[1]
+                    return p[0], NegationFormula(formula=result[1])  
+                elif( not type(p[0]) is tuple):
+                  result1 = p[0]
+                  result2 = p[1]
+                  # Universal Formula
+                  if p[0].gettokentype() == 'EXT':  
+                    var = p[0].value.split('E')[1]
+                    return p[0], ExistentialFormula(variable=var, formula=p[1][1])
+                  elif p[0].gettokentype() == 'ALL':  
+                    var = p[0].value.split('A')[1]
+                    return p[0], UniversalFormula(variable=var, formula=p[1][1])
+            elif len(p)==4:
+              # Predicate Formula
+              name = p[0]
+              varlist = p[2]
+              return p[0], PredicateFormula(name=p[0].value,variables=varlist[1])            
+            elif len(p) == 3:
+              # Binary Formula
+              result1 = p[0]
+              result2 = p[2]
+              if(p[1].value=='&'):
+                return result1[0], AndFormula(left=result1[1], right=result2[1])
+              elif(p[1].value=='|'):
+                return result1[0], OrFormula(left=result1[1], right=result2[1])
+              elif(p[1].value=='->'):
+                return result1[0], ImplicationFormula(left=result1[1], right=result2[1])
+              elif(p[1].value=='<->'):
+                return result1[0], BiImplicationFormula(left=result1[1], right=result2[1])
+              else:
+                return result1[0], BinaryFormula(key=p[1].value, left=result1[1], right=result2[1])
+
+        @self.pg.production('formula : OPEN_PAREN formula CLOSE_PAREN')
+        def paren_formula(p):
+            result = p[1]
+            return p[0], result[1]
+
+        @self.pg.production('variableslist : VAR')
+        @self.pg.production('variableslist : VAR COMMA variableslist')
+        def variablesList(p):
+             if len(p) == 1:
+                 return p[0], [p[0].value]
+             else:
+                result = p[2]
+             return p[0], [p[0].value] + result[1]
+
+        @self.pg.production('formulaslist : formula')
+        @self.pg.production('formulaslist : formula COMMA formulaslist')
+        def formulasList(p):
+             if len(p) == 1:
+                 return p[0], [p[0][1]]
+             else:
+                result = p[2]
+             return p[0], [p[0][1]] + result[1]
+
+
+        @self.pg.error
+        def error_handle(token):
+            productions = self.state.splitlines()
+            error = ''  
+
+            if(productions == ['']):
+                error = 'Nenhuma fórmula foi recebida, verifique a entrada.'
+            if token.gettokentype() == '$end':
+                error = 'Nenhuma fórmula foi recebida, verifique a entrada.'
+            else:
+                source_position = token.getsourcepos()
+                error = 'A definição da fórmula não está correta, verifique se todas regras foram aplicadas corretamente.\nLembre-se que uma uma fórmula é definida pela seguinte BNF:\nF :== P | ~ P | P & Q | P | Q | P -> Q | P <-> Q | (P), onde P,Q são átomos.\n'
+                error += "Erro de sintaxe:\n"
+                error += productions[source_position.lineno - 1]
+                string = '\n'
+                for i in range(source_position.colno -1):
+                    string += ' '
+                string += '^'
+                if token.gettokentype() == 'OUT':
+                    string += ' Símbolo não pertence a linguagem.'
+                error += string
+                
+            raise ValueError("@@"+error)
+
+    def get_error(self, type_error, token_error, rule):
+        productions = self.state.splitlines()
+        column_error = token_error.getsourcepos().colno
+        erro = "Erro de sintaxe na linha {}:\n".format(token_error.getsourcepos().lineno)
+        erro += productions[token_error.getsourcepos().lineno-1] + "\n"
+        for i in range(column_error-1):
+            erro += ' '
+#        if type_error == constants.REFERENCED_FORMULE_NONE:## REVER SE NAO EXCLUIR
+#            erro += '^, A fórmula {} não foi definida anteriormente ou foi descartada.\n'.format(token_error.value)
+        
+        return erro
+    
+    def get_parser(self):
+        return self.pg.build()
+    
+    @staticmethod
+    def getTheorem(input_text=''):
+        try:
+          lexer = Lexer().get_lexer()
+          tokens = lexer.lex(input_text)
+
+          pg = ParserTheorem(state=input_text)
+          pg.parse()
+          parser = pg.get_parser()
+          formulas, conclusion = parser.parse(tokens)
+          return formulas, conclusion
+        except ValueError:
+            s = traceback.format_exc()
+            #print (f'Erro ao fazer o parser da fórmula!')
+            return [], None
+        else:
+            return [], None
+            pass
+
+    @staticmethod
+    def toString(premisses,conclusion,parentheses=False):
+      if (premisses==[]):
+        return '|- '+conclusion.toString(parentheses=parentheses)
+      else:
+        return ", ".join(f.toString(parentheses=parentheses) for f in premisses)+' |- '+conclusion.toString(parentheses=parentheses)
+
+    @staticmethod
+    def toLatex(premisses,conclusion,parentheses=False):
+      if (premisses==[]):
+        return '\\vdash '+conclusion.toLatex(parentheses=parentheses)
+      else:
+        return ", ".join(f.toLatex(parentheses=parentheses) for f in premisses) +' \\vdash '+conclusion.toLatex(parentheses=parentheses)
+   
