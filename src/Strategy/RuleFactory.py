@@ -5,7 +5,6 @@ from Strategy.BottomDef import BottomDef
 from Strategy.DisjunctionIntroductionDef import DisjunctionIntroductionDef
 from Strategy.RaaDef import RaaDef
 from Strategy.DisjunctionEliminationDef import DisjunctionEliminationDef
-from Strategy.DisjunctionIntroductionDef import DisjunctionIntroductionDef
 from Strategy.ImplicationEliminationDef import ImplicationEliminationDef
 from Strategy.ImplicationIntroductionDef import ImplicationIntroductionDef
 from Strategy.NegationEliminationDef import NegationEliminationDef
@@ -50,6 +49,10 @@ class RuleFactory:
         'EXISTS_INTRO': ExistsIntroductionDef,
         'EXISTS_ELIM': ExistsEliminationDef,
     }
+
+    def get_rules(self):
+        """Retorna o dicionário de regras registradas"""
+        return self._rules
 
     
     @classmethod
