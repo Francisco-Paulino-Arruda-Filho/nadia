@@ -45,18 +45,7 @@ print(check_proof('''1. A->(B->C)             pre
 }
 7. B->(A->C)             ->i 2-6'''))
 
-prova = '''
-1. A | (A & B)        pre
-2. { A                hip
-3.     A              copie 2
-   }
-4. { A & B            hip
-5.     A              &e 4
-   }
-6. (A | (A & B)) -> A  ->i 1-5
-'''
 
-print(check_proof(prova))
 
 print(check_proof('''1. {    ~(A | ~A)            hip
 2.  {   ~A                   hip
@@ -93,6 +82,15 @@ print(check_proof('''1. ~Ax ~P(x)                 pre
 9. @                          ~e 1,8
 }
 10. Ex P(x)                   raa 2-9'''))
+
+print(check_proof('''1. A|(A&B)          pre
+2. {    A           hip
+3.      A           copie 2
+   }
+4. {    A&B         hip
+5.      A           &e 4
+   }
+6. (A|(A&B))->A     ->i 1-5'''))
 
 
 print(check_proof('''1. Ax (H(x)|M(x))         pre
