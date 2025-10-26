@@ -16,6 +16,7 @@ from BinaryFormula.OrFormula import OrFormula
 from BinaryFormula.ImplicationFormula import ImplicationFormula
 from BinaryFormula.BiImplicationFormula import BiImplicationFormula
 from BinaryFormula.BinaryFormula import BinaryFormula
+from nadia.rules.HypothesisDef import HypothesisDef, hypothesis, limpaHipotese
 
 ## File symbol_table.py
 
@@ -282,12 +283,6 @@ class natural_deduction_return:
 
 
 ## File ast.py
-hypothesis = {}
-
-def limpaHipotese():
-    global hypothesis
-    hypothesis = {}
-
 
 class PremisseDef():
     def __init__(self,line, formula):
@@ -300,23 +295,6 @@ class PremisseDef():
 
     def toLatex(self, symbol_table):
         latex = '{'+self.formula.toLatex()+'}'
-        return latex
-
-class HypothesisDef():
-    def __init__(self,line, formula):
-        self.line = line
-        self.formula = formula
-        self.copied = None
-        self.is_copied = False
-
-    def evaluation(self,parser,deduction_result):
-        return
-
-    def toLatex(self, symbol_table):
-        line = self.copied if self.copied else self.line
-        if line not in hypothesis:
-            hypothesis[line] = str(len(hypothesis) + 1)
-        latex = '\\big['+self.formula.toLatex()+'\\big]^{_{'+hypothesis[line]+'}}'
         return latex
 
 class HypothesisFirstOrderDef():
