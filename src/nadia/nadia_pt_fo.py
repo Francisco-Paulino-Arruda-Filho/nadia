@@ -24,6 +24,7 @@ from QuantifierFormula.UniversalFormula import UniversalFormula
 from utils.HypothesisManager import HypothesisManager
 from models.constants import constants
 from nadia.Lexer.lexer import Lexer
+from nadia.errors.error_strategy import ErrorContext
 
 ## File symbol_table.py
 
@@ -299,7 +300,7 @@ from rply import ParserGenerator
 import sys
 import copy
 
-# Import das fórmulas
+# Import das fórmulas                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
 from AtomFormula.AtomFormula import AtomFormula
 from BinaryFormula.AndFormula import AndFormula
 from BinaryFormula.BiImplicationFormula import BiImplicationFormula
@@ -616,6 +617,7 @@ class ParserNadia():
         self.box_latex = "\\begin{logicproof}{6}\n"
         self.has_error = False
         self.rule_factory = RuleFactory()
+        self.error_context = ErrorContext()  # Instância do contexto de erros
 
     def verify_sequence_lines_error(self, deduction_result):
         productions = self.state.splitlines()
@@ -1140,90 +1142,7 @@ class ParserNadia():
             raise ValueError("@@"+error)
 
     def get_error(self, type_error, token_error, rule):
-        productions = self.state.splitlines()
-        column_error = token_error.getsourcepos().colno
-        erro = "Erro de sintaxe na linha {}:\n".format(token_error.getsourcepos().lineno)
-        erro += productions[token_error.getsourcepos().lineno-1] + "\n"
-        for i in range(column_error-1):
-            erro += ' '
-        if type_error == constants.REFERENCED_FORMULE_NONE:
-            erro += '^, A fórmula {} não foi definida anteriormente ou foi descartada.\n'.format(token_error.value)
-        elif type_error == constants.INVALID_RESULT:
-            erro += "^, A fórmula {} não é um resultado válido para esta regra.".format(rule.formula.toString())
-        elif type_error == constants.INVALID_HYPOTHESIS:
-            erro += "^, A hipótese da linha {} não corresponde a hipótese esperada para a fórmula da conclusão desta regra.".format(token_error.value)
-        elif type_error == constants.INVALID_BOX_RESULT:
-            erro += "^, A fórmula da linha {} não corresponde a conclusão esperada desta caixa para esta regra.".format(token_error.value)
-        elif type_error == constants.UNEXPECT_RESULT:
-            erro += "^, A fórmula {} não é um resultado válido para a regra aplicada.".format(rule.formula.toString())
-        elif type_error == constants.IS_NOT_DISJUNCTION:
-            erro += "^, A fórmula referenciada na linha {} não é disjunção.".format(token_error.value)
-        elif type_error == constants.IS_NOT_CONJUNCTION:
-            erro += "^, A fórmula referenciada na linha {} não é conjunção.".format(token_error.value)
-        elif type_error == constants.IS_NOT_IMPLICATION:
-            erro += "^, A fórmula referenciada na linha {} não é implicação.".format(token_error.value)
-        elif type_error == constants.IS_NOT_BOTTOM:
-            erro += "^, A fórmula referenciada na linha {} deveria ser @.".format(token_error.value)
-        elif type_error == constants.INVALID_NEGATION:
-            erro += "^, Nenhuma das fórmulas referencias pelas linhas é a negação da outra fórmula."
-        elif type_error == constants.INVALID_LEFT_CONJUNCTION:
-            erro += "^, A fórmula à esquerda fórmula da conclusão não é demonstrada por nenhuma das linhas referenciadas nesta regra."
-        elif type_error == constants.INVALID_RIGHT_CONJUNCTION:
-            erro += "^, A fórmula à direita da fórmula da conclusão não é demonstrada por nenhuma das linhas referenciadas nesta regra."
-        elif type_error == constants.INVALID_LEFT_OR_RIGHT_DISJUNCTION:
-            erro += "^, A fórmula à direita ou à equerda da fórmula da conclusão deve ser a mesma da fórmula referencia na linha {}.".format(token_error.value)
-        elif type_error == constants.INVALID_LEFT_OR_RIGHT_CONJUNCTION:
-            erro += "^, A fórmula à direita ou à equerda da fórmula da linha {} deve ser a mesma da fórmula da conclusão da regra.".format(token_error.value)
-        elif type_error == constants.NONE_COPY:
-            erro += "^, A Fórmula referenciada para cópia não existe."
-        elif type_error == constants.COPY_DIFFERENT_FORMULE:
-            erro += "^, A Fórmula referenciada para cópia é diferente da definida para essa regra."
-        elif type_error == constants.INVALID_HIP_PRE_WRITE:
-            erro += "^, uma hipótese só pode ser usado no início de uma caixa e é introduzida apenas por uma regra de inferência."
-        elif type_error == constants.INVALID_RULE:
-            erro += "^, a regra {} deve ter duas referências separadas por vírgula.".format(token_error.value)
-        elif type_error == constants.INVALID_RULE_ONE_REFERENCE:
-            erro += "^, a regra {} deve ter uma única referência.".format(token_error.value)
-        elif type_error == constants.EXCEDENT_HIP_PRE_WRITE:
-            erro += "^, Não é esperado texto depois de pre."
-        elif type_error == constants.USING_DESCARTED_RULE:
-            erro += "^, a referência a fórmula da linha {} não pode ser utilizada, pois esta fórmula já foi descartada.".format(token_error.value)
-        elif type_error == constants.REFERENCED_LINE_NOT_DEFINED:
-            erro += "^, a referência a fórmula da linha {} não pode ser utilizada, pois todas as referências devem ocorrer antes desta regra.".format(token_error.value)
-        elif type_error == constants.INVALID_SCOPE_DELIMITER:
-            erro += "^, esta não é uma caixa (escopo) válida."      
-        elif type_error == constants.HYPOTHESIS_WITHOUT_BOX:
-            erro += "^, A hipótese definida não está dentro de uma caixa."
-        elif type_error == constants.CLOSE_BRACKET_WITHOUT_BOX:
-            erro += "^, Fechamento de caixa sem caixa aberta."
-        elif type_error == constants.HYPOTHESIS_WITHOUT_CLOSED_BOX:
-            erro += "^, É necessário fechar o escopo desta caixa."
-        elif type_error == constants.BOX_MUST_BE_DISPOSED:
-            erro += "^, A hipótese que foi introduzida por essa caixa dever ser descartada pela regra que a introduziu em linha imediatamente posterior ao fechamento desta caixa."
-        elif type_error == constants.BOX_MUST_BE_DISPOSED_BY_RULE:
-            erro += "^, Esta caixa dever ser fechada em linha imediatamente posterior pela regra que a introduziu."
-        elif type_error == constants.INVALID_SUBSTITUTION_UNIVERSAL:
-            erro += "^, A fórmula {} não é uma substituição válida da fórmula universal refenciada na linha {}.".format(rule.formula.toString(), rule.reference1.value)
-        elif type_error == constants.INVALID_CONCLUSION_EXISTENTIAL_LAST_RULE:
-            erro += "^, A formula da conclusão desta regra deve ser a mesma fórmula refenciada na linha {}.".format(token_error.value)
-        elif type_error == constants.INVALID_CONCLUSION_UNIVERSAL_LAST_RULE:
-            erro += "^, A formula da conclusão desta regra deve ser a quantificação universal da fórmula refenciada na linha {} com a variável definida neste escopo.".format(token_error.value)
-        elif type_error == constants.INVALID_UNIVERSAL_FORMULA:
-            erro += "^, A fórmula referenciada na regra do universal não é uma fórmula do tipo universal."
-        elif type_error == constants.INVALID_SUBSTITUTION_EXISTENTIAL:
-            erro += "^, A fórmula {} não é uma substituição válida da fórmula existencial refenciada na linha {}.".format(rule.formula.toString(), rule.reference1.value)
-        elif type_error == constants.VARIABLE_IS_NOT_FRESH_VARIABLE:
-            erro += "^, A variável utilizada na linha {} é uma variável livre de uma fórmula definida anteriormente e, portanto, não pode ser utilizada nesta regra.".format(token_error.value)
-        elif type_error == constants.BOX_MUST_HAVE_A_VARIABLE:
-            erro += "^, A caixa que inicia na linha {} deve iniciar com uma variável para esta regra.".format(token_error.value) 
-        elif type_error == constants.BOX_MUST_HAVE_ONLY_A_VARIABLE:
-            erro += "^, A caixa que inicia na linha {} não tem hipótese. A caixa deve iniciar com uma variável apenas para a regra da introdução do universal.".format(token_error.value) 
-        elif type_error == constants.INVALID_CONCLUSION_EXISTENTIAL:
-            erro += "^, A variável utilizada na conclusão dessa regra não pode ser a variável utilizada na caixa que inicia na linha {}.".format(token_error.value)
-        elif type_error == constants.INVALID_CONCLUSION_UNIVERSAL:
-            erro += "^, A variável utilizada na caixa que inicia na linha {} não pode ocorrer como variável livre na conclusão da fórmula e, portanto, não pode ser utilizada nesta regra.".format(token_error.value)
-        
-        return erro
+        return self.error_context.get_error(self.state, type_error, token_error, rule)
     
     def get_parser(self):
         return self.pg.build()
