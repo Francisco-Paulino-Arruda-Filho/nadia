@@ -145,7 +145,6 @@ class SymbolTable:
         """Retorna apenas as fórmulas que são realmente premissas (regras 'pre')"""
         formulas = []
         
-        # Apenas regras no escopo global (scope_0) podem ser premissas
         global_scope = self.symbol_table.get('scope_0', {})
         
         for rule in global_scope.get('rules', []):
@@ -155,9 +154,6 @@ class SymbolTable:
             # Verifica se é uma premissa pela classe E pela ausência de referências
             rule_class_name = rule.__class__.__name__
             
-            # Apenas PremisseDef são premissas reais
-            # Hipóteses (HypothesisDef, HypothesisFirstOrderDef) NÃO são premissas
-            # Regras com referências (->i, &e, etc.) NÃO são premissas
             is_premise = (
                 rule_class_name == 'PremisseDef' and
                 not hasattr(rule, 'reference1') and 
@@ -596,15 +592,11 @@ class ParserNadia():
                 self.box_latex += "{} & hipótese\\\\\n".format(formula.toLatex())
                 hypothesis = self.rule_factory.create_rule('hypothesis', p[0].value, formula)
 
-            # --- CORREÇÃO: não inserir hipótese se ainda estivermos no scope_0 ---
             if self.symbol_table.current_scope == "scope_0":
-                # Não inserimos; apenas marcamos o erro e reportamos
                 self.has_error = True
                 deduction_result.add_error(self.get_error(constants.HYPOTHESIS_WITHOUT_BOX, formula_result[0], hypothesis))
-                # retornamos token e o "valor" (sem inserir)
                 return p[0], formula_result[0] if 'formula_result' in locals() and formula_result else None
 
-            # Se estamos em um escopo válido, inserimos normalmente
             self.symbol_table.insert(hypothesis, p[0])
             return p[0], formula_result[0]
 
@@ -717,26 +709,23 @@ class ParserNadia():
                 original_rule = self.symbol_table.get_rule(line)
                 
                 if original_rule is not None:
-                    # Cria uma NOVA instância da regra copiada
                     rule = copy.deepcopy(original_rule)
-                    rule._is_copied = True  # Usar _is_copied em vez de is_copied
+                    rule._is_copied = True  
                     
                     if hasattr(rule, 'copied'):
                         rule.copied = original_rule.line
                     
                     formula = formula_result[1]
                     
-                    # Verifica se a fórmula é a mesma
                     if rule.formula != formula:
                         formula_diff = rule.formula
-                        rule._formula = formula  # Usar _formula em vez de formula
+                        rule._formula = formula  
                         self.has_error = True
                         deduction_result.add_error(self.get_error(constants.COPY_DIFFERENT_FORMULE, formula_result[0], rule))
                         rule._formula = formula_diff
                     
                     self.box_latex += "{} & copie {}\\\\\n".format(formula.toLatex(), p[4].value)
                     
-                    # Cria uma nova instância do CopyDef para a linha atual
                     copy_rule = self.rule_factory.create_rule('copy', p[0].value, formula, p[4])
                     copy_rule._is_copied = True
                     self.symbol_table.insert(copy_rule, p[0])
