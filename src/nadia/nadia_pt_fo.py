@@ -6,7 +6,6 @@ import copy
 # Import das novas classes
 from AtomFormula.AtomFormula import AtomFormula
 from BinaryFormula.AndFormula import AndFormula
-from BinaryFormula.BiImplicationFormula import BiImplicationFormula
 from BinaryFormula.BinaryFormula import BinaryFormula
 from BinaryFormula.ImplicationFormula import ImplicationFormula
 from BinaryFormula.OrFormula import OrFormula
@@ -21,6 +20,7 @@ from NegationFormula.NegationFormula import NegationFormula
 from PredicatedFormula.PredicatedFormula import PredicateFormula
 from QuantifierFormula.ExistentialFormula import ExistentialFormula
 from QuantifierFormula.UniversalFormula import UniversalFormula
+from nadia.parser.parser_theorem import ParserTheorem
 from utils.HypothesisManager import HypothesisManager
 from models.constants import constants
 from nadia.Lexer.lexer import Lexer
