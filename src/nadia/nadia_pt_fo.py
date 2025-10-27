@@ -119,24 +119,62 @@ class SymbolTable:
       return lines
       
     def getPremisses(self):
-      lines = []
-      for i in range(len(self.symbol_table)):
-        for rule in self.symbol_table['scope_{}'.format(i)]['rules']:
-          # Usando RuleBase em vez de PremisseDef específico
-          if rule and hasattr(rule, 'formula') and not hasattr(rule, 'reference1'):
-            # Lógica para identificar premissas pode precisar de ajuste
-            lines.append(rule.line)
-      return lines
+        """Retorna os números das linhas das premissas"""
+        lines = []
+        
+        global_scope = self.symbol_table.get('scope_0', {})
+        
+        for rule in global_scope.get('rules', []):
+            if rule is None:
+                continue
+                
+            rule_class_name = rule.__class__.__name__
+            is_premise = (
+                rule_class_name == 'PremisseDef' and
+                not hasattr(rule, 'reference1') and 
+                not getattr(rule, 'is_copied', False) and
+                rule_class_name not in ['HypothesisDef', 'HypothesisFirstOrderDef']
+            )
+            
+            if is_premise:
+                lines.append(rule.line)
+        
+        return lines
 
     def getPremissesFormulas(self):
-      formulas = []
-      for i in range(len(self.symbol_table)):
-        for rule in self.symbol_table['scope_{}'.format(i)]['rules']:
-          # Lógica para identificar premissas - pode precisar de ajuste
-          if rule and hasattr(rule, 'formula') and not hasattr(rule, 'reference1'):
-            if rule.formula not in formulas:
-              formulas.append(rule.formula)
-      return formulas
+        """Retorna apenas as fórmulas que são realmente premissas (regras 'pre')"""
+        formulas = []
+        
+        # Apenas regras no escopo global (scope_0) podem ser premissas
+        global_scope = self.symbol_table.get('scope_0', {})
+        
+        for rule in global_scope.get('rules', []):
+            if rule is None:
+                continue
+                
+            # Verifica se é uma premissa pela classe E pela ausência de referências
+            rule_class_name = rule.__class__.__name__
+            
+            # Apenas PremisseDef são premissas reais
+            # Hipóteses (HypothesisDef, HypothesisFirstOrderDef) NÃO são premissas
+            # Regras com referências (->i, &e, etc.) NÃO são premissas
+            is_premise = (
+                rule_class_name == 'PremisseDef' and
+                not hasattr(rule, 'reference1') and 
+                not getattr(rule, 'is_copied', False) and
+                rule_class_name not in ['HypothesisDef', 'HypothesisFirstOrderDef']
+            )
+            
+            if is_premise:
+                # Verifica se a fórmula já está na lista
+                formula_exists = any(
+                    existing_formula.toString() == rule.formula.toString() 
+                    for existing_formula in formulas
+                )
+                if not formula_exists:
+                    formulas.append(rule.formula)
+        
+        return formulas
 
     def getConclusionFormula(self):
       if self.symbol_table["scope_0"]["rules"] and self.symbol_table["scope_0"]["rules"][-1]:
@@ -530,9 +568,10 @@ class ParserNadia():
         @self.pg.production('step : NUM DOT OPEN_BRACKET VAR formula HYPOTHESIS')
         def Hypothesis(p):
             formula_result = {}
+            hypothesis = None
             if len(p) == 4 and p[3].gettokentype() == 'VAR':
                 variable = p[3].value
-                self.symbol_table.add_scope(p[0].value,variable=variable)
+                self.symbol_table.add_scope(p[0].value, variable=variable)
                 self.box_latex += "\\begin{subproof}\n"
                 self.box_latex += "\\llap{$"+str(variable)+"\\quad$} &"+"\\\\\n"
                 return p[0], None
@@ -557,11 +596,18 @@ class ParserNadia():
                 self.box_latex += "{} & hipótese\\\\\n".format(formula.toLatex())
                 hypothesis = self.rule_factory.create_rule('hypothesis', p[0].value, formula)
 
-            self.symbol_table.insert(hypothesis, p[0])
+            # --- CORREÇÃO: não inserir hipótese se ainda estivermos no scope_0 ---
             if self.symbol_table.current_scope == "scope_0":
+                # Não inserimos; apenas marcamos o erro e reportamos
                 self.has_error = True
                 deduction_result.add_error(self.get_error(constants.HYPOTHESIS_WITHOUT_BOX, formula_result[0], hypothesis))
+                # retornamos token e o "valor" (sem inserir)
+                return p[0], formula_result[0] if 'formula_result' in locals() and formula_result else None
+
+            # Se estamos em um escopo válido, inserimos normalmente
+            self.symbol_table.insert(hypothesis, p[0])
             return p[0], formula_result[0]
+
 
         @self.pg.production('step : NUM DOT formula HYPOTHESIS')
         @self.pg.production('step : NUM DOT formula ATOM')
