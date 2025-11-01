@@ -28,6 +28,9 @@ class ForAllIntroductionDef(RuleBase):
         self._is_copied = value
 
     def evaluation(self, parser, deduction_result) -> None:
+        # Valida as referências das caixas
+        parser.check_scope_reference_error(deduction_result, self)
+        
         variable = parser.symbol_table.find_scope_variable(self.reference1.value)
         first_rule = parser.symbol_table.get_first_rule_from_scope(self.reference1.value)
         

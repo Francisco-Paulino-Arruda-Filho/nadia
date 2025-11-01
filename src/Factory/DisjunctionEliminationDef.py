@@ -33,7 +33,10 @@ class DisjunctionEliminationDef(RuleBase):
     def evaluation(self, parser, deduction_result) -> None:
         before = parser.check_line_reference_before_rule_error(deduction_result, self)
         if before:
-            parser.check_line_scope_reference_error(deduction_result, self, reference1=True)      
+            parser.check_line_scope_reference_error(deduction_result, self, reference1=True)
+        
+        # Valida as referências das caixas
+        parser.check_scope_reference_error(deduction_result, self)
 
         formula_reference = parser.symbol_table.find_token(self.line)
         formula1 = parser.symbol_table.lookup_formula_by_line(self.line, self.reference1.value)

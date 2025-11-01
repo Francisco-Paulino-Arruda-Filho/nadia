@@ -29,6 +29,9 @@ class ImplicationIntroductionDef(RuleBase):
 
     def evaluation(self, parser, deduction_result) -> None:
         parser.check_line_reference_before_rule_error(deduction_result, self)
+        
+        # Valida as referências das caixas
+        parser.check_scope_reference_error(deduction_result, self)
 
         formula_reference = parser.symbol_table.find_token(self.line)
         formula1, formula2 = parser.symbol_table.check_scope_delimiter(self.reference1.value, self.reference2.value)

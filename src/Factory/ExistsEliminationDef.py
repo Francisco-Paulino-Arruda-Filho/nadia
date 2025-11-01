@@ -31,7 +31,10 @@ class ExistsEliminationDef(RuleBase):
     def evaluation(self, parser, deduction_result) -> None:
         before = parser.check_line_reference_before_rule_error(deduction_result, self)
         if before:
-            parser.check_line_scope_reference_error(deduction_result, self, reference1=True)      
+            parser.check_line_scope_reference_error(deduction_result, self, reference1=True)
+        
+        # Valida as referências das caixas
+        parser.check_scope_reference_error(deduction_result, self)
 
         variable = parser.symbol_table.find_scope_variable(self.reference2.value)
         if variable is None:

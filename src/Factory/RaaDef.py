@@ -28,6 +28,9 @@ class RaaDef(RuleBase):
         self._is_copied = value
 
     def evaluation(self, parser, deduction_result) -> None:
+        # Valida as referências das caixas
+        parser.check_scope_reference_error(deduction_result, self)
+        
         formula_reference = parser.symbol_table.find_token(self.line)
         formula1, formula2 = parser.symbol_table.check_scope_delimiter(self.reference1.value, self.reference2.value)
         if formula1 is None or formula2 is None or formula_reference is None:
