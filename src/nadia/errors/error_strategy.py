@@ -288,7 +288,7 @@ class InvalidConclusionUniversalError(ErrorStrategy):
         erro = self._build_header(productions, token_error)
         erro += f"^, A variável utilizada na caixa que inicia na linha {token_error.value} não pode ocorrer como variável livre na conclusão da fórmula e, portanto, não pode ser utilizada nesta regra."
         return erro
-
+ 
 
 class ErrorContext:
     """Contexto para gerenciar estratégias de erro."""

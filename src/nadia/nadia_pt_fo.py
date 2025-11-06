@@ -15,7 +15,9 @@ from PredicatedFormula.PredicatedFormula import PredicateFormula
 from QuantifierFormula.ExistentialFormula import ExistentialFormula
 from QuantifierFormula.UniversalFormula import UniversalFormula
 from nadia.parser.parser_theorem import ParserTheorem
-from nadia.validators.check_scope_reference_validator import DisjunctionEliminationScopeChecker, ExistsEliminationScopeChecker, StandardScopeChecker
+from nadia.validators.disjunction_elimination_scope_checker import DisjunctionEliminationScopeChecker
+from nadia.validators.exists_elimination_scope_checker import ExistsEliminationScopeChecker
+from nadia.validators.standard_scope_checker import StandardScopeChecker
 from utils.HypothesisManager import HypothesisManager
 from models.constants import constants
 from nadia.Lexer.lexer import Lexer
@@ -476,8 +478,6 @@ class ParserNadia():
         if checker:
             return checker.check(rule, deduction_result)
         
-        # 3. Se nenhum verificador está registrado para esta regra,
-        #    ela não precisa de checagem de escopo.
         return True
 
     def parse(self):
