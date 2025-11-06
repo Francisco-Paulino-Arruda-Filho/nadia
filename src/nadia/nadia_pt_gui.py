@@ -1,7 +1,6 @@
 import ipywidgets as widgets
 from IPython.display import display, Markdown, HTML
 import traceback
-from nadia.nadia_pt_fo import ParserNadia
 from nadia.parser.parser_formula import ParserFormula
 from nadia.parser.parser_theorem import ParserTheorem
 
