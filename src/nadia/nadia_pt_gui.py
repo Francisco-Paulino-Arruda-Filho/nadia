@@ -2,6 +2,7 @@ import ipywidgets as widgets
 from IPython.display import display, Markdown, HTML
 import traceback
 from nadia.parser.parser_formula import ParserFormula
+from nadia.parser.parser_nadia import ParserNadia
 from nadia.parser.parser_theorem import ParserTheorem
 
 def nadia(input_proof='', input_text_assumptions=[], input_text_conclusion='', height_layout='300px',default_gentzen=False, default_fitch=False):
