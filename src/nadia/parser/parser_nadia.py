@@ -21,12 +21,11 @@ from utils.HypothesisManager import HypothesisManager
 from models.constants import constants
 from nadia.Lexer.lexer import Lexer
 from nadia.errors.error_strategy import ErrorContext
+from Builder.LatexBuilder import LatexBuilder
 
-
-class ParserNadia():
+class ParserNadia:
     def __init__(self, state):
         self.state = state
-
         self._scope_checker_map = {
             'NegationIntroductionDef': StandardScopeChecker(self),
             'RaaDef': StandardScopeChecker(self),
@@ -35,9 +34,7 @@ class ParserNadia():
             'ExistsEliminationDef': ExistsEliminationScopeChecker(self),
             'DisjunctionEliminationDef': DisjunctionEliminationScopeChecker(self),
         }
-
         self.pg = ParserGenerator(
-            # A list of all token names accepted by the parser.
             ['NUM', 'DOT', 'COMMA', 'OPEN_PAREN', 'CLOSE_PAREN', 'NOT', 'RAA',
              'AND', 'OR', 'OR_INTROD', 'OR_ELIM', 'BOTTOM', 'BOTTOM_ELIM', 'OPEN_BRACKET', 'AND_INTROD',
              'AND_ELIM', 'NEG_INTROD', 'NEG_ELIM', 'HYPOTHESIS', 'PREMISE', 'ATOM', 'CLOSE_BRACKET',
@@ -53,10 +50,10 @@ class ParserNadia():
             ]
         )
         self.symbol_table = SymbolTable()
-        self.box_latex = "\\begin{logicproof}{6}\n"
+        self.latex_builder = LatexBuilder() 
         self.has_error = False
         self.rule_factory = RuleFactory()
-        self.error_context = ErrorContext()  # Instância do contexto de erros
+        self.error_context = ErrorContext()
 
     def verify_sequence_lines_error(self, deduction_result):
         productions = self.state.splitlines()
@@ -78,10 +75,9 @@ class ParserNadia():
     def check_is_closed_boxes_by_rule(self, deduction_result):
         current_scope = None
         for i in range(1, len(self.symbol_table.symbol_table)):
-            current_scope = self.symbol_table.symbol_table['scope_{}'.format(
-                i)]
+            current_scope = self.symbol_table.symbol_table['scope_{}'.format(i)]
             current_scope_parent = self.symbol_table.symbol_table[current_scope['parent']
-                                                                  ] if current_scope['parent'] else None
+                ] if current_scope['parent'] else None
             if (current_scope_parent is None):
                 self.has_error = True
                 deduction_result.add_error(
@@ -91,7 +87,6 @@ class ParserNadia():
                 if (int(rule.line) > int(current_scope['end_line'])):
                     rule_next = rule
                     break
-            # Verificação genérica usando RuleBase
             if (rule_next is None or not hasattr(rule_next, 'evaluation')):
                 self.has_error = True
                 begin_rule = current_scope["rules"][0]
@@ -130,46 +125,36 @@ class ParserNadia():
 
     def check_scope_reference_error(self, deduction_result, rule):
         checker = self._get_scope_checker(rule)
-
-        # 2. Se um verificador foi encontrado, executa o Template Method dele
         if checker:
             return checker.check(rule, deduction_result)
-
         return True
 
     def parse(self):
         deduction_result = natural_deduction_return()
-
+        
         @self.pg.production('program : steps')
         def program(p):
             self.symbol_table.set_lines_visible()
             self.verify_sequence_lines_error(deduction_result)
             self.check_is_closed_boxes_by_rule(deduction_result)
-
             rule_info = p[0]
             for i in rule_info:
                 rule_line, formula_reference = rule_info[i]
                 rule = self.symbol_table.get_rule(rule_line.value)
-
-                # Avaliação genérica de todas as regras
                 if rule and hasattr(rule, 'evaluation'):
                     rule.evaluation(self, deduction_result)
-
             if not self.has_error:
                 latex = '\\['
-                formula_reference = str(
-                    sorted(list(map(int, rule_info.keys())))[-1])
-                rule = self.symbol_table.get_rule(
-                    rule_info[formula_reference][0].value)
+                formula_reference = str(sorted(list(map(int, rule_info.keys())))[-1])
+                rule = self.symbol_table.get_rule(rule_info[formula_reference][0].value)
                 latex += rule.toLatex(self.symbol_table)
                 latex += '\\]'
-
-                HypothesisManager.reset()  # Usando HypothesisManager em vez de limpaHipotese
-
+                
+                HypothesisManager.reset()
+                
                 deduction_result.premisses = self.symbol_table.getPremissesFormulas()
                 deduction_result.conclusion = self.symbol_table.getConclusionFormula()
-                deduction_result.fitch = self.box_latex[:-
-                                                        3] + '\n\end{logicproof}'
+                deduction_result.fitch = self.latex_builder.build()  
                 deduction_result.gentzen = latex + "\n"
             return deduction_result
 
@@ -184,15 +169,13 @@ class ParserNadia():
                 p[0][result[0].value] = result
                 return p[0]
 
-        # Produções usando a Factory
         @self.pg.production('step : NUM DOT formula PREMISE')
         def Premisse(p):
             formula_result = p[2]
             formula = formula_result[1]
-            premisse = self.rule_factory.create_rule(
-                'premise', p[0].value, formula)
+            premisse = self.rule_factory.create_rule('premise', p[0].value, formula)
             self.symbol_table.insert(premisse, p[0])
-            self.box_latex += "{} & premissa\\\\\n".format(formula.toLatex())
+            self.latex_builder.add_premise(formula)  
             return p[0], formula_result[0]
 
         @self.pg.production('step : NUM DOT OPEN_BRACKET formula HYPOTHESIS')
@@ -204,43 +187,30 @@ class ParserNadia():
             if len(p) == 4 and p[3].gettokentype() == 'VAR':
                 variable = p[3].value
                 self.symbol_table.add_scope(p[0].value, variable=variable)
-                self.box_latex += "\\begin{subproof}\n"
-                self.box_latex += "\\llap{$" + \
-                    str(variable)+"\\quad$} &"+"\\\\\n"
+                self.latex_builder.begin_subproof().add_hypothesis_variable_only(variable) 
                 return p[0], None
             elif len(p) == 5:
                 formula_result = p[3]
                 self.symbol_table.add_scope(p[0].value)
                 formula = formula_result[1]
-                self.box_latex += "\\begin{subproof}\n"
-                self.box_latex += "{} & hipótese\\\\\n".format(
-                    formula.toLatex())
-                hypothesis = self.rule_factory.create_rule(
-                    'hypothesis', p[0].value, formula)
+                self.latex_builder.begin_subproof().add_hypothesis(formula) 
+                hypothesis = self.rule_factory.create_rule('hypothesis', p[0].value, formula)
             elif len(p) == 6:
                 variable = p[3].value
                 formula_result = p[4]
                 self.symbol_table.add_scope(p[0].value, variable=variable)
                 formula = formula_result[1]
-                self.box_latex += "\\begin{subproof}\n"
-                self.box_latex += "\\llap{$"+str(variable)+"\\quad$}" + \
-                    "{} & hipótese\\\\\n".format(formula.toLatex())
-                hypothesis = self.rule_factory.create_rule(
-                    'hypothesis_first_order', p[0].value, formula, variable)
+                self.latex_builder.begin_subproof().add_hypothesis(formula, variable)  
+                hypothesis = self.rule_factory.create_rule('hypothesis_first_order', p[0].value, formula, variable)
             elif len(p) == 4 and p[3].gettokentype() != 'VAR':
                 formula_result = p[2]
                 formula = formula_result[1]
-                self.box_latex += "{} & hipótese\\\\\n".format(
-                    formula.toLatex())
-                hypothesis = self.rule_factory.create_rule(
-                    'hypothesis', p[0].value, formula)
-
+                self.latex_builder.add_hypothesis(formula) 
+                hypothesis = self.rule_factory.create_rule('hypothesis', p[0].value, formula)
             if self.symbol_table.current_scope == "scope_0":
                 self.has_error = True
-                deduction_result.add_error(self.get_error(
-                    constants.HYPOTHESIS_WITHOUT_BOX, formula_result[0], hypothesis))
+                deduction_result.add_error(self.get_error(constants.HYPOTHESIS_WITHOUT_BOX, formula_result[0], hypothesis))
                 return p[0], formula_result[0] if 'formula_result' in locals() and formula_result else None
-
             self.symbol_table.insert(hypothesis, p[0])
             return p[0], formula_result[0]
 
@@ -250,118 +220,97 @@ class ParserNadia():
         def Wrong_pre_hip(p):
             self.has_error = True
             wrong_rule = RuleFactory._create_wrong(p[0].value, p[-2])
-            deduction_result.add_error(self.get_error(
-                constants.INVALID_HIP_PRE_WRITE, p[-1], wrong_rule))
+            deduction_result.add_error(self.get_error(constants.INVALID_HIP_PRE_WRITE, p[-1], wrong_rule))
             return p[0], p[-2]
 
         @self.pg.production('step : NUM DOT formula NEG_ELIM NUM COMMA NUM')
         def Neg_elim(p):
             formula_result = p[2]
             formula = formula_result[1]
-            negationElimination = self.rule_factory.create_rule(
-                'negation_elimination', p[0].value, formula, p[4], p[6])
+            negationElimination = self.rule_factory.create_rule('negation_elimination', p[0].value, formula, p[4], p[6])
             self.symbol_table.insert(negationElimination, p[0])
-            self.box_latex += "{} & $\lnot e$ {}, {}\\\\\n".format(
-                formula.toLatex(), p[4].value, p[6].value)
+            self.latex_builder.add_negation_elimination(formula, p[4].value, p[6].value)  
             return p[0], formula_result[0]
 
         @self.pg.production('step : NUM DOT formula IMP_ELIM NUM COMMA NUM')
         def Imp_elim(p):
             formula_result = p[2]
             formula = formula_result[1]
-            implicationElimination = self.rule_factory.create_rule(
-                'implication_elimination', p[0].value, formula, p[4], p[6])
+            implicationElimination = self.rule_factory.create_rule('implication_elimination', p[0].value, formula, p[4], p[6])
             self.symbol_table.insert(implicationElimination, p[0])
-            self.box_latex += "{} & $\\rightarrow e$ {}, {}\\\\\n".format(
-                formula.toLatex(), p[4].value, p[6].value)
+            self.latex_builder.add_implication_elimination(formula, p[4].value, p[6].value)  
             return p[0], formula_result[0]
-
+            
         @self.pg.production('step : NUM DOT formula IMP_INTROD NUM DASH NUM')
         def Imp_introd(p):
             formula_result = p[2]
             formula = formula_result[1]
-            implicationIntrod = self.rule_factory.create_rule(
-                'implication_introduction', p[0].value, formula, p[4], p[6])
+            implicationIntrod = self.rule_factory.create_rule('implication_introduction', p[0].value, formula, p[4], p[6])
             self.symbol_table.insert(implicationIntrod, p[0])
-            self.box_latex += "{} & $\\rightarrow i$ {}-{}\\\\\n".format(
-                formula.toLatex(), p[4].value, p[6].value)
+            self.latex_builder.add_implication_introduction(formula, p[4].value, p[6].value)
             return p[0], formula_result[0]
 
         @self.pg.production('step : NUM DOT formula OR_INTROD NUM')
         def Or_introd(p):
             formula_result = p[2]
             formula = formula_result[1]
-            disjunctionIntrod = self.rule_factory.create_rule(
-                'disjunction_introduction', p[0].value, formula, p[4])
+            disjunctionIntrod = self.rule_factory.create_rule('disjunction_introduction', p[0].value, formula, p[4])
             self.symbol_table.insert(disjunctionIntrod, p[0])
-            self.box_latex += "{} & $\\lor i$ {}\\\\\n".format(
-                formula.toLatex(), p[4].value)
+            self.latex_builder.add_disjunction_introduction(formula, p[4].value)  
             return p[0], formula_result[0]
 
         @self.pg.production('step : NUM DOT formula AND_INTROD NUM COMMA NUM')
         def And_introd(p):
             formula_result = p[2]
             formula = formula_result[1]
-            andIntrod = self.rule_factory.create_rule(
-                'and_introduction', p[0].value, formula, p[4], p[6])
+            andIntrod = self.rule_factory.create_rule('and_introduction', p[0].value, formula, p[4], p[6])
             self.symbol_table.insert(andIntrod, p[0])
-            self.box_latex += "{} & $\\land i$ {},{}\\\\\n".format(
-                formula.toLatex(), p[4].value, p[6].value)
+            self.latex_builder.add_conjunction_introduction(formula, p[4].value, p[6].value)
             return p[0], formula_result[0]
 
         @self.pg.production('step : NUM DOT formula AND_ELIM NUM')
         def And_elim(p):
             formula_result = p[2]
             formula = formula_result[1]
-            andElim = self.rule_factory.create_rule(
-                'and_elimination', p[0].value, formula, p[4])
+            andElim = self.rule_factory.create_rule('and_elimination', p[0].value, formula, p[4])
             self.symbol_table.insert(andElim, p[0])
-            self.box_latex += "{} & $\\land e$ {}\\\\\n".format(
-                formula.toLatex(), p[4].value)
+            self.latex_builder.add_conjunction_elimination(formula, p[4].value) 
             return p[0], formula_result[0]
 
         @self.pg.production('step : NUM DOT formula OR_ELIM NUM COMMA NUM DASH NUM COMMA NUM DASH NUM')
         def Or_elim(p):
             formula_result = p[2]
             formula = formula_result[1]
-            orElim = self.rule_factory.create_rule(
-                'disjunction_elimination', p[0].value, formula, p[4], p[6], p[8], p[10], p[12])
+            orElim = self.rule_factory.create_rule('disjunction_elimination', p[0].value, formula, p[4], p[6], p[8], p[10], p[12])
             self.symbol_table.insert(orElim, p[0])
-            self.box_latex += "{} & $\\lor e$ {}, {}-{}, {}-{}\\\\\n".format(
-                formula.toLatex(), p[4].value, p[6].value, p[8].value, p[10].value, p[12].value)
+            self.latex_builder.add_disjunction_elimination(formula, p[4].value, p[6].value, p[8].value, p[10].value, p[12].value)  
             return p[0], formula_result[0]
-
+        
         @self.pg.production('step : NUM DOT formula NEG_INTROD NUM DASH NUM')
         def Neg_introd(p):
             formula_result = p[2]
             formula = formula_result[1]
-            negationIntrod = self.rule_factory.create_rule(
-                'negation_introduction', p[0].value, formula, p[4], p[6])
+            negationIntrod = self.rule_factory.create_rule('negation_introduction', p[0].value, formula, p[4], p[6])
             self.symbol_table.insert(negationIntrod, p[0])
-            self.box_latex += "{} & $\lnot i$ {}-{}\\\\\n".format(
-                formula.toLatex(), p[4].value, p[6].value)
+            self.latex_builder.add_negation_introduction(formula, p[4].value, p[6].value) 
             return p[0], formula_result[0]
 
         @self.pg.production('step : NUM DOT formula BOTTOM_ELIM NUM')
         def Bottom(p):
             formula_result = p[2]
             formula = formula_result[1]
-            bottom = self.rule_factory.create_rule(
-                'bottom_elimination', p[0].value, formula, p[4])
+            bottom = self.rule_factory.create_rule('bottom_elimination', p[0].value, formula, p[4])
             self.symbol_table.insert(bottom, p[0])
-            self.box_latex += "{} & $\\bot e$ {}\\\\\n".format(
-                formula.toLatex(), p[4].value)
+            self.latex_builder.add_bottom_elimination(formula, p[4].value) 
             return p[0], formula_result[0]
 
         @self.pg.production('step : NUM DOT formula RAA NUM DASH NUM')
         def Raa(p):
             formula_result = p[2]
             formula = formula_result[1]
-            raa = self.rule_factory.create_rule(
-                'raa', p[0].value, formula, p[4], p[6])
+            raa = self.rule_factory.create_rule('raa', p[0].value, formula, p[4], p[6])
             self.symbol_table.insert(raa, p[0])
-            self.box_latex += "{} & raa {}-{}\\\\\n".format(
-                formula.toLatex(), p[4].value, p[6].value)
+            self.latex_builder.add_raa(formula, p[4].value, p[6].value)  
             return p[0], formula_result[0]
 
         @self.pg.production('step : NUM DOT formula COPY NUM')
@@ -371,40 +320,35 @@ class ParserNadia():
                 line = p[4].value
                 formula_result = p[2]
                 original_rule = self.symbol_table.get_rule(line)
-
+                
                 if original_rule is not None:
                     rule = copy.deepcopy(original_rule)
-                    rule._is_copied = True
-
+                    rule._is_copied = True  
+                    
                     if hasattr(rule, 'copied'):
                         rule.copied = original_rule.line
-
+                    
                     formula = formula_result[1]
-
+                    
                     if rule.formula != formula:
                         formula_diff = rule.formula
-                        rule._formula = formula
+                        rule._formula = formula  
                         self.has_error = True
-                        deduction_result.add_error(self.get_error(
-                            constants.COPY_DIFFERENT_FORMULE, formula_result[0], rule))
+                        deduction_result.add_error(self.get_error(constants.COPY_DIFFERENT_FORMULE, formula_result[0], rule))
                         rule._formula = formula_diff
-
-                    self.box_latex += "{} & copie {}\\\\\n".format(
-                        formula.toLatex(), p[4].value)
-
-                    copy_rule = self.rule_factory.create_rule(
-                        'copy', p[0].value, formula, p[4])
+                    
+                    self.latex_builder.add_copy(formula, p[4].value)  
+                    
+                    copy_rule = self.rule_factory.create_rule('copy', p[0].value, formula, p[4])
                     copy_rule._is_copied = True
                     self.symbol_table.insert(copy_rule, p[0])
                 else:
                     self.has_error = True
-                    deduction_result.add_error(
-                        self.get_error(constants.NONE_COPY, p[4], None))
+                    deduction_result.add_error(self.get_error(constants.NONE_COPY, p[4], None))
             else:
                 self.has_error = True
-                deduction_result.add_error(self.get_error(
-                    constants.USING_DESCARTED_RULE, p[4], None))
-
+                deduction_result.add_error(self.get_error(constants.USING_DESCARTED_RULE, p[4], None))
+            
             return p[0], p[2][0]
 
         @self.pg.production('step : CLOSE_BRACKET')
@@ -412,17 +356,14 @@ class ParserNadia():
             rule = self.symbol_table.get_last_rule_from_scope()
             if rule is None:
                 self.has_error = True
-                deduction_result.add_error(self.get_error(
-                    constants.BOX_MUST_BE_DISPOSED_BY_RULE, p[0], rule))
+                deduction_result.add_error(self.get_error(constants.BOX_MUST_BE_DISPOSED_BY_RULE, p[0], rule))              
                 return p[0], rule
             elif self.symbol_table.get_box_start():
                 self.symbol_table.end_scope(rule.line)
-                self.box_latex = self.box_latex[:-3] + '\n'
-                self.box_latex += "\end{subproof}\n"
+                self.latex_builder.end_subproof()  
             else:
                 self.has_error = True
-                deduction_result.add_error(self.get_error(
-                    constants.CLOSE_BRACKET_WITHOUT_BOX, p[0], rule))
+                deduction_result.add_error(self.get_error(constants.CLOSE_BRACKET_WITHOUT_BOX, p[0], rule))
             token = p[0]
             token.value = rule.line
             return p[0], rule.formula
@@ -431,44 +372,36 @@ class ParserNadia():
         def For_all_elim(p):
             formula_result = p[2]
             formula = formula_result[1]
-            forAllElimination = self.rule_factory.create_rule(
-                'forall_elimination', p[0].value, formula, p[4])
+            forAllElimination = self.rule_factory.create_rule('forall_elimination', p[0].value, formula, p[4])
             self.symbol_table.insert(forAllElimination, p[0])
-            self.box_latex += "{} & $\\forall e$ {}\\\\\n".format(
-                formula.toLatex(), p[4].value)
+            self.latex_builder.add_forall_elimination(formula, p[4].value)   
             return p[0], formula_result[0]
 
         @self.pg.production('step : NUM DOT formula EXT_INTROD NUM')
         def Exists_intro(p):
             formula_result = p[2]
             formula = formula_result[1]
-            existsIntroduction = self.rule_factory.create_rule(
-                'exists_introduction', p[0].value, formula, p[4])
+            existsIntroduction = self.rule_factory.create_rule('exists_introduction', p[0].value, formula, p[4])
             self.symbol_table.insert(existsIntroduction, p[0])
-            self.box_latex += "{} & $\\exists i$ {}\\\\\n".format(
-                formula.toLatex(), p[4].value)
+            self.latex_builder.add_exists_introduction(formula, p[4].value)  
             return p[0], formula_result[0]
 
         @self.pg.production('step : NUM DOT formula EXT_ELIM NUM COMMA NUM DASH NUM')
         def Exists_elim(p):
             formula_result = p[2]
             formula = formula_result[1]
-            existsElim = self.rule_factory.create_rule(
-                'exists_elimination', p[0].value, formula, p[4], p[6], p[8])
+            existsElim = self.rule_factory.create_rule('exists_elimination', p[0].value, formula, p[4], p[6], p[8])
             self.symbol_table.insert(existsElim, p[0])
-            self.box_latex += "{} & $\\exists e$ {},{}-{}\\\\\n".format(
-                formula.toLatex(), p[4].value, p[6].value, p[8].value)
+            self.latex_builder.add_exists_elimination(formula, p[4].value, p[6].value, p[8].value)  
             return p[0], formula_result[0]
 
         @self.pg.production('step : NUM DOT formula ALL_INTROD NUM DASH NUM')
         def For_all_intro(p):
             formula_result = p[2]
             formula = formula_result[1]
-            allIntrod = self.rule_factory.create_rule(
-                'forall_introduction', p[0].value, formula, p[4], p[6])
+            allIntrod = self.rule_factory.create_rule('forall_introduction', p[0].value, formula, p[4], p[6])
             self.symbol_table.insert(allIntrod, p[0])
-            self.box_latex += "{} & $\\forall i$ {}-{}\\\\\n".format(
-                formula.toLatex(), p[4].value, p[6].value)
+            self.latex_builder.add_forall_introduction(formula, p[4].value, p[6].value)  
             return p[0], formula_result[0]
 
         @self.pg.production('step : NUM DOT formula IMP_ELIM NUM ')
@@ -481,8 +414,7 @@ class ParserNadia():
             self.has_error = True
             from Factory.WrongDef import WrongDef
             wrong_rule = WrongDef(p[0].value, p[2])
-            deduction_result.add_error(self.get_error(
-                constants.INVALID_RULE, p[3], wrong_rule))
+            deduction_result.add_error(self.get_error(constants.INVALID_RULE, p[3], wrong_rule))
             return p[0], p[2]
 
         @self.pg.production('step : NUM DOT formula AND_ELIM NUM COMMA NUM ')
@@ -491,8 +423,7 @@ class ParserNadia():
             self.has_error = True
             from Factory.WrongDef import WrongDef
             wrong_rule = WrongDef(p[0].value, p[2])
-            deduction_result.add_error(self.get_error(
-                constants.INVALID_RULE_ONE_REFERENCE, p[3], wrong_rule))
+            deduction_result.add_error(self.get_error(constants.INVALID_RULE_ONE_REFERENCE, p[3], wrong_rule))
             return p[0], p[2]
 
         @self.pg.production('formula : EXT formula')
@@ -512,30 +443,27 @@ class ParserNadia():
                     return p[0], AtomFormula(key=p[0].value)
                 elif p[0].gettokentype() == 'NOT':
                     result = p[1]
-                    return p[0], NegationFormula(formula=result[1])
+                    return p[0], NegationFormula(formula=result[1])  
                 elif type(p[0]) is not tuple:
                     result1 = p[0]
                     result2 = p[1]
-                    # Universal Formula
-                    if p[0].gettokentype() == 'EXT':
+                    if p[0].gettokentype() == 'EXT':  
                         var = p[0].value.split('E')[1]
                         return p[0], ExistentialFormula(variable=var, formula=p[1][1])
-                    elif p[0].gettokentype() == 'ALL':
+                    elif p[0].gettokentype() == 'ALL':  
                         var = p[0].value.split('A')[1]
                         return p[0], UniversalFormula(variable=var, formula=p[1][1])
             elif len(p) == 4:
-                # Predicate Formula
                 varlist = p[2]
-                return p[0], PredicateFormula(name=p[0].value, variables=varlist[1])
+                return p[0], PredicateFormula(name=p[0].value, variables=varlist[1])            
             elif len(p) == 3:
-                # Binary Formula
                 result1 = p[0]
                 result2 = p[2]
-                if (p[1].value == '&'):
+                if p[1].value == '&':
                     return result1[0], AndFormula(left=result1[1], right=result2[1])
-                elif (p[1].value == '|'):
+                elif p[1].value == '|':
                     return result1[0], OrFormula(left=result1[1], right=result2[1])
-                elif (p[1].value == '->'):
+                elif p[1].value == '->':
                     return result1[0], ImplicationFormula(left=result1[1], right=result2[1])
                 else:
                     return result1[0], BinaryFormula(key=p[1].value, left=result1[1], right=result2[1])
@@ -557,9 +485,8 @@ class ParserNadia():
         @self.pg.error
         def error_handle(token):
             productions = self.state.splitlines()
-            error = ''
-
-            if (productions == ['']):
+            error = ''  
+            if productions == ['']:
                 error = 'Nenhuma demonstração foi recebida, verifique a entrada.'
             if token.gettokentype() == '$end':
                 error = 'Uma das definições não está completa, verifique se todas regras foram aplicadas corretamente. Lembre-se que uma regra de inferência sempre inicia com um número seguido de um . (linha de referência), tem uma fórmula e uma justificativa (premissa, hipóteses ou uma das regras de inferência com suas respectivas referências para fórmulas anteriores).'
@@ -575,12 +502,12 @@ class ParserNadia():
                 if token.gettokentype() == 'OUT':
                     string += ' Símbolo não pertence a linguagem.'
                 error += string
-
-            raise ValueError("@@"+error)
+                
+            raise ValueError("@@" + error)
 
     def get_error(self, type_error, token_error, rule):
         return self.error_context.get_error(self.state, type_error, token_error, rule)
-
+    
     def get_parser(self):
         return self.pg.build()
 
@@ -603,7 +530,6 @@ class ParserNadia():
     def getProof(input_text=''):
         lexer = Lexer().get_lexer()
         tokens = lexer.lex(input_text)
-
         pg = ParserNadia(state=input_text)
         pg.parse()
         parser = pg.get_parser()
@@ -612,14 +538,14 @@ class ParserNadia():
 
     @staticmethod
     def toString(premisses, conclusion, parentheses=False):
-        if (premisses == []):
-            return '|- '+conclusion.toString(parentheses=parentheses)
+        if premisses == []:
+            return '|- ' + conclusion.toString(parentheses=parentheses)
         else:
-            return ", ".join(f.toString(parentheses=parentheses) for f in premisses)+' |- '+conclusion.toString(parentheses=parentheses)
+            return ", ".join(f.toString(parentheses=parentheses) for f in premisses) + ' |- ' + conclusion.toString(parentheses=parentheses)
 
     @staticmethod
     def toLatex(premisses, conclusion, parentheses=False):
-        if (premisses == []):
-            return '\\vdash '+conclusion.toLatex(parentheses=parentheses)
+        if premisses == []:
+            return '\\vdash ' + conclusion.toLatex(parentheses=parentheses)
         else:
-            return ", ".join(f.toLatex(parentheses=parentheses) for f in premisses) + ' \\vdash '+conclusion.toLatex(parentheses=parentheses)
+            return ", ".join(f.toLatex(parentheses=parentheses) for f in premisses) + ' \\vdash ' + conclusion.toLatex(parentheses=parentheses)
